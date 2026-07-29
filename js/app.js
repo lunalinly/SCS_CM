@@ -731,17 +731,8 @@ function availableSubcategories(categoryId){
     .map(t=>t.subcategory))];
 }
 function renderSubcategoryChips(){
-  const wrap = document.getElementById('subcategoryChips');
-  const container = document.getElementById('subcategoryWrap');
-  const subs = activeCategory==='all' ? [] : availableSubcategories(activeCategory);
-  container.style.display = subs.length ? 'block' : 'none';
-  if(!subs.length){ activeSubcategory='all'; wrap.innerHTML=''; return; }
-  wrap.innerHTML = ['all', ...subs].map(s=>
-    `<button class="chip ${activeSubcategory===s?'active':''}" data-subcategory="${escapeHtml(s)}">${s==='all'?'全部小類型':escapeHtml(s)}</button>`
-  ).join('');
-  wrap.querySelectorAll('[data-subcategory]').forEach(btn=>{
-    btn.onclick = ()=>{ activeSubcategory=btn.dataset.subcategory; renderList(); };
-  });
+  // 保留舊資料相容性；精靈現在採「分類 → 問題 → 細項」三層，不再顯示小類型篩選。
+  activeSubcategory = 'all';
 }
 function renderCategoryChips(){
   const cats = ['all', ...categories.map(c=>c.id)];
@@ -1005,10 +996,6 @@ function openModal(id=null){
               ${categories.map(c=>`<option value="${c.id}" ${t.category===c.id?'selected':''}>${escapeHtml(c.label)}</option>`).join('')}
             </select>
           </div>
-          <div class="field" id="mSubcategoryWrap" style="display:${t.stage==='body'?'block':'none'}">
-            <label>小類型</label>
-            <input type="text" id="mSubcategory" value="${escapeHtml(t.subcategory||'')}" placeholder="例如：商品資訊、配送進度">
-          </div>
           <div class="field" id="mSaleWrap" style="display:${(t.stage==='open'||t.stage==='close'||t.stage==='body')?'block':'none'}">
             <label>售前/售後</label>
             <select id="mSaleType">
@@ -1063,12 +1050,10 @@ function openModal(id=null){
 
   const stageSel = overlay.querySelector('#mStage');
   const catWrap = overlay.querySelector('#mCatWrap');
-  const subcategoryWrap = overlay.querySelector('#mSubcategoryWrap');
   const saleWrap = overlay.querySelector('#mSaleWrap');
   const waitWrap = overlay.querySelector('#mAppendWaitWrap');
   stageSel.onchange = ()=>{
     catWrap.style.display = stageSel.value==='body' ? 'block':'none';
-    subcategoryWrap.style.display = stageSel.value==='body' ? 'block':'none';
     saleWrap.style.display = (stageSel.value==='open'||stageSel.value==='close'||stageSel.value==='body') ? 'block':'none';
     waitWrap.style.display = stageSel.value==='body' ? 'block':'none';
   };
@@ -1114,7 +1099,8 @@ function openModal(id=null){
   overlay.querySelector('#mSave').onclick = async ()=>{
     const stage = overlay.querySelector('#mStage').value;
     const category = stage==='body' ? overlay.querySelector('#mCategory').value : null;
-    const subcategory = stage==='body' ? overlay.querySelector('#mSubcategory').value.trim() || null : null;
+    // 舊匯入資料若已有小類型欄位則保留，但不再把它當成精靈的分類層級。
+    const subcategory = stage==='body' ? (t.subcategory || null) : null;
     const saleType = (stage==='open'||stage==='close'||stage==='body') ? overlay.querySelector('#mSaleType').value : null;
     const appendWait = stage==='body' ? overlay.querySelector('#mAppendWait').checked : false;
     const title = overlay.querySelector('#mTitle').value.trim();
