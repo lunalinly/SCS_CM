@@ -45,6 +45,8 @@ const STAGE_LABEL_SHORT = {open:'開頭', wait:'查詢中', body:'中段', close
 const STORAGE_KEY = 'helper_script_templates_v3';
 const CATEGORY_STORAGE_KEY = 'helper_script_categories_v3';
 const CUSTOM_VARS_KEY = 'helper_script_custom_vars_v3';
+const EDITOR_CODE_VAR = '小編代號';
+const EDITOR_CODE_VALUE_KEY = 'helper_script_editor_code_v1';
 
 const SEED_CATEGORIES = [
   {id:'logistics', label:'物流', emoji:'🚚'},
@@ -154,6 +156,13 @@ function loadCustomVars(){
 function saveCustomVars(list){
   customVars = list;
   try{ localStorage.setItem(CUSTOM_VARS_KEY, JSON.stringify(list)); }catch(e){}
+}
+
+function loadEditorCode(){
+  try{ return localStorage.getItem(EDITOR_CODE_VALUE_KEY) || ''; }catch(e){ return ''; }
+}
+function saveEditorCode(value){
+  try{ localStorage.setItem(EDITOR_CODE_VALUE_KEY, value); }catch(e){}
 }
 
 function updateSaveBadge(){
@@ -807,7 +816,11 @@ function renderVarBar(){
     </div>`).join('');
     
   bar.querySelectorAll('input').forEach(inp=>{
-    inp.oninput = ()=>{ varsValues[inp.dataset.var] = inp.value; syncVarInputs(); };
+    inp.oninput = ()=>{
+      varsValues[inp.dataset.var] = inp.value;
+      if(inp.dataset.var===EDITOR_CODE_VAR) saveEditorCode(inp.value);
+      syncVarInputs();
+    };
   });
 }
 function syncVarInputs(){
@@ -1216,6 +1229,11 @@ function renderAll(){
 
 async function init(){
   customVars = loadCustomVars();
+  if(!customVars.includes(EDITOR_CODE_VAR)){
+    customVars.push(EDITOR_CODE_VAR);
+    saveCustomVars(customVars);
+  }
+  varsValues[EDITOR_CODE_VAR] = loadEditorCode();
   categories = await loadCategories();
   templates = await loadTemplates();
   
