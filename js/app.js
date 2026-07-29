@@ -95,6 +95,7 @@ let editingId = null;
 let wizActiveCat = null;
 let wizActiveProblem = null;
 let wizActiveProblemTag = 'all';
+const wizStageProblems = {open:null, wait:null, close:null};
 let wizSaleType = 'post';
 let sidebarMode = 'wizard';
 const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
@@ -768,14 +769,38 @@ function attachWizEvents(container){
     b.onclick = ()=> insertTemplate(b.dataset.tpl, parseInt(b.dataset.variant || '0'));
   });
 }
+function renderSimpleStage(stage, list, problemId, detailId, detailLabelId){
+  const problemWrap = document.getElementById(problemId);
+  const detailWrap = document.getElementById(detailId);
+  const detailLabel = document.getElementById(detailLabelId);
+  problemWrap.innerHTML = list.length
+    ? list.map(t=>`<button type="button" class="wiz-chip ${wizStageProblems[stage]===t.id?'active':''}" data-simple-stage="${stage}" data-problem="${t.id}">${escapeHtml(t.title)}</button>`).join('')
+    : '<span class="empty-note">尚未建立話術</span>';
+  problemWrap.querySelectorAll('[data-simple-stage]').forEach(btn=>{
+    btn.onclick=()=>{
+      wizStageProblems[btn.dataset.simpleStage]=btn.dataset.problem;
+      renderSimpleStage(stage, list, problemId, detailId, detailLabelId);
+    };
+  });
+  const selected = list.find(t=>t.id===wizStageProblems[stage]);
+  if(!selected){
+    detailWrap.innerHTML='';
+    detailLabel.style.display='none';
+    return;
+  }
+  detailLabel.style.display='block';
+  detailWrap.innerHTML = allVariants(selected).map((_, i)=>
+    `<button type="button" class="wiz-btn" data-tpl="${selected.id}" data-variant="${i}">${escapeHtml(variantLabel(selected, i))}</button>`
+  ).join('');
+  attachWizEvents(detailWrap);
+}
+
 function renderWizard(){
   document.getElementById('saleTypePre').classList.toggle('active', wizSaleType==='pre');
   document.getElementById('saleTypePost').classList.toggle('active', wizSaleType==='post');
 
   const openList = templates.filter(t=>t.stage==='open' && (t.saleType||'post')===wizSaleType);
-  const wizOpen = document.getElementById('wizOpen');
-  wizOpen.innerHTML = wizButtonsHtml(openList);
-  attachWizEvents(wizOpen);
+  renderSimpleStage('open', openList, 'wizOpen', 'wizOpenDetails', 'wizOpenDetailLabel');
 
   const catWrap = document.getElementById('wizBodyCat');
   catWrap.innerHTML = categories.map(c=>
@@ -794,14 +819,10 @@ function renderWizard(){
   renderWizardBodySub();
 
   const waitList = templates.filter(t=>t.stage==='wait');
-  const wizWait = document.getElementById('wizWait');
-  wizWait.innerHTML = wizButtonsHtml(waitList);
-  attachWizEvents(wizWait);
+  renderSimpleStage('wait', waitList, 'wizWait', 'wizWaitDetails', 'wizWaitDetailLabel');
 
   const closeList = templates.filter(t=>t.stage==='close' && (t.saleType||'post')===wizSaleType);
-  const wizClose = document.getElementById('wizClose');
-  wizClose.innerHTML = wizButtonsHtml(closeList);
-  attachWizEvents(wizClose);
+  renderSimpleStage('close', closeList, 'wizClose', 'wizCloseDetails', 'wizCloseDetailLabel');
 }
 function renderWizardBodySub(){
   const tagWrap = document.getElementById('wizProblemTagFilters');
