@@ -505,50 +505,58 @@ function openJsonImportConfirmModal(dump, filename){
 function exportCurrentTemplates(){
   if(typeof XLSX==='undefined'){ showToast('匯出功能載入中,請稍後再試一次', true); return; }
   if(!templates.length){ showToast('目前沒有話術可以匯出', true); return; }
-  
+
   let maxVariants = 0;
   templates.forEach(t=>{ if(t.variants && t.variants.length > maxVariants) maxVariants = t.variants.length; });
-  
   const saleTypeLabel = {pre:'售前', post:'售後', both:'皆可'};
+
   const rows = templates.map(t=>{
     const guidance = guidanceFor(t);
     const steps = guidance.filter(item=>item.type==='step');
     const links = guidance.filter(item=>item.type==='link');
-    const fullGuidanceText = guidance.map((item, index)=>{
-      if(item.type==='link') return `${index+1}. 參考連結：${item.label || '參考連結'}｜${item.url}`;
-      return `${index+1}. 步驟：${item.text}${item.url ? '｜'+item.url : ''}`;
-    }).join('\n');
+    // 欄位順序：基本資料 → 回覆選項 → 操作提示。
     const row = {
       '階段': STAGE_LABEL_SHORT[t.stage] || t.stage,
-      '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
       '大類型': t.category ? catLabel(t.category) : '',
-      '小類型': t.subcategory || '',
+      '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
       '標籤': (t.tags||[]).join('、'),
       '標題': t.title,
       '預設按鍵名稱': t.defaultVariantLabel || '預設回覆',
-      '回覆內容': t.content,
-      '提示文字': t.guidanceText || '',
-      '操作步驟': steps.map(item=>item.text).join('\n'),
-      '操作步驟連結': steps.map(item=>item.url || '').join('\n'),
-      '參考連結名稱': links.map(item=>item.label || '參考連結').join('\n'),
-      '參考連結': links.map(item=>item.url).join('\n'),
-      '提示內容（完整）': fullGuidanceText,
-      '提示完整資料': JSON.stringify(guidance),
-      '附帶查詢中': t.appendWait ? '是' : '否'
+      '回覆內容': t.content
     };
     for(let i=0; i<maxVariants; i++){
       row[`按鍵名稱${i+2}`] = (t.variantLabels && t.variantLabels[i]) || `版本 ${i+2}`;
       row[`回覆方式${i+2}`] = (t.variants && t.variants[i]) ? t.variants[i] : '';
     }
-    // 保留舊欄位，舊版匯入檔仍可讀取；新欄位則完整保留多個步驟與連結。
-    row['提示'] = (steps[0]||{}).text || t.hint || '';
+    row['提示文字'] = t.guidanceText || '';
+    row['操作步驟'] = steps.map(item=>item.text).join('\n');
+    row['操作步驟連結'] = steps.map(item=>item.url || '').join('\n');
+    row['參考連結名稱'] = links.map(item=>item.label || '參考連結').join('\n');
+    row['參考連結'] = links.map(item=>item.url).join('\n');
+    row['附帶查詢中'] = t.appendWait ? '是' : '否';
     return row;
   });
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '話術清單');
-  const dateStr = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, `客服話術匯出_${dateStr}.xlsx`);
+  XLSX.writeFile(wb, `客服話術匯出_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function downloadBlankTemplate(){
+  if(typeof XLSX==='undefined'){ showToast('模板功能載入中,請稍後再試一次', true); return; }
+  const headers = [
+    '階段', '大類型', '售前售後', '標籤', '標題',
+    '預設按鍵名稱', '回覆內容',
+    '按鍵名稱2', '回覆方式2',
+    '按鍵名稱3', '回覆方式3',
+    '提示文字', '操作步驟', '操作步驟連結',
+    '參考連結名稱', '參考連結', '附帶查詢中'
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers]);
+  ws['!cols'] = headers.map(name=>({wch:Math.max(14, String(name).length*2+4)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '話術模板');
+  XLSX.writeFile(wb, '客服話術空白模板.xlsx');
 }
 
 function openJsonBackupModal(){
@@ -1469,6 +1477,7 @@ async function init(){
   templates = await loadTemplates();
   
   document.getElementById('btnExport').onclick = exportCurrentTemplates;
+  document.getElementById('btnTemplate').onclick = downloadBlankTemplate;
   document.getElementById('btnBackupModal').onclick = openJsonBackupModal;
   
   const fileInp = document.getElementById('fileImport');
