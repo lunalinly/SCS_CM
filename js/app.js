@@ -1,8 +1,3 @@
-import { state } from './state.js';
-import * as storage from './storage.js';
-import * as importer from './import.js';
-import * as exporter from './export.js';
-
 
 /* 全站 SVG Icon 庫 */
 const ICONS = {
@@ -45,22 +40,365 @@ function customConfirm(msg, onConfirm) {
 }
 
 const STAGE_LABEL = {open:'開頭問候', wait:'查詢中／需要時間', body:'中段回覆', close:'結尾／滿意度'};
-export const STAGE_LABEL_SHORT = {open:'開頭', wait:'查詢中', body:'中段', close:'結尾'};
+const STAGE_LABEL_SHORT = {open:'開頭', wait:'查詢中', body:'中段', close:'結尾'};
 
- 
+const STORAGE_KEY = 'helper_script_templates_v3';
+const CATEGORY_STORAGE_KEY = 'helper_script_categories_v3';
+const CUSTOM_VARS_KEY = 'helper_script_custom_vars_v3';
 
+const SEED_CATEGORIES = [
+  {id:'logistics', label:'物流', emoji:'🚚'},
+  {id:'return', label:'退換貨', emoji:'📦'},
+  {id:'payment', label:'付款', emoji:'💳'},
+  {id:'product', label:'商品/庫存', emoji:'🛍️'},
+  {id:'other', label:'其他', emoji:'💬'}
+];
+
+const SEED_TEMPLATES = [
+  {id:'s1', stage:'open', category:null, saleType:'pre', title:'售前開場', content:'您好,我是小幫手[BS],很高興為您服務!請問想詢問什麼呢?'},
+  {id:'s2', stage:'open', category:null, saleType:'post', title:'售後開場(客人已提供訂單編號)', content:'親愛的顧客您好,已收到您的訂單編號 {訂單編號},小幫手正在為您查詢中,請您稍等一下喔!'},
+  {id:'s20', stage:'open', category:null, saleType:'post', title:'售後開場(客人尚未提供訂單編號)', content:'您好,我是小幫手[BS],為了盡快協助您查詢,麻煩您提供一下訂單編號,小幫手確認後立即為您處理喔!'},
+
+  {id:'s3', stage:'wait', category:null, title:'補貨時間無法即時得知', hint:'可以提醒客人到商品頁點擊愛心收藏,上架會第一時間通知。', content:'不好意思,由於小幫手也無法即時知道補貨的相關時間以及補貨的具體安排,建議您可點擊商品頁的愛心,就可掌握最新的商品近況喔![BS]'},
+  {id:'s4', stage:'wait', category:null, title:'需要跟後台再次確認', content:'不好意思,這部分小幫手需要再跟後台確認一下,請您稍等幾分鐘,確認後小幫手會立即回覆您喔!'},
+  {id:'s5', stage:'wait', category:null, title:'近期訊息量大,需要多點時間', content:'不好意思,近期詢問的顧客較多,小幫手需要多一點時間為您查詢,還請您耐心等候一下,謝謝您的體諒!'},
+  {id:'s6', stage:'wait', category:null, title:'需要客人補充資訊才能查', content:'為了能盡快協助您處理,麻煩您提供一下訂單編號 {訂單編號} 以及問題截圖,小幫手確認後會盡快回覆您喔!'},
+
+  {id:'s7', stage:'body', category:'logistics', saleType:'post', title:'包裹物流查詢中', content:'親愛的顧客您好,您的訂單 {訂單編號} 目前物流狀態顯示為「{物流狀態}」,若超過預計送達時間 {天數} 天仍未收到,歡迎再次與我們聯繫,小幫手會協助您進一步處理喔!', variants:['親愛的顧客您好,系統顯示您的包裹目前為「{物流狀態}」,預計還需要 {天數} 天送達,請您耐心等候一下喔!']},
+  {id:'s8', stage:'body', category:'logistics', saleType:'post', title:'收件地址填寫錯誤', appendWait:true, content:'若訂單尚未出貨,建議您先聯繫賣家協助修改收件地址;若已經出貨,建議直接與物流業者聯繫改址或攔截包裹喔!'},
+  {id:'s9', stage:'body', category:'return', saleType:'post', title:'申請退貨流程說明', hint:'退貨申請入口在:訂單頁面 →「申請退貨/退款」。', content:'親愛的顧客您好,退貨申請可至訂單頁面點選「申請退貨/退款」,選擇退貨原因並上傳商品照片,送出後賣家將於期限內審核回覆您喔!'},
+  {id:'s10', stage:'body', category:'return', saleType:'post', title:'退款進度查詢', appendWait:true, content:'您的退款申請已受理,款項將於審核通過後 {天數} 個工作天內原路退回,實際入帳時間會依付款方式略有不同,請您耐心等候喔!'},
+  {id:'s11', stage:'body', category:'payment', saleType:'pre', title:'付款失敗處理', content:'若付款時顯示失敗,建議您先確認卡片額度、有效期限,或改用其他付款方式再試一次;若仍無法成功,歡迎截圖錯誤訊息給小幫手協助查看喔!'},
+  {id:'s12', stage:'body', category:'payment', saleType:'post', title:'重複扣款反映', appendWait:true, content:'若發現有重複扣款的狀況,麻煩您提供扣款明細截圖,小幫手會盡快為您確認並協助處理退款事宜喔!'},
+  {id:'s13', stage:'body', category:'product', saleType:'pre', title:'商品庫存/補貨查詢', hint:'可以提醒客人到商品頁點擊愛心收藏,上架會第一時間通知。', content:'目前商品頁顯示的庫存為即時狀態,若顯示缺貨,建議您點擊商品頁的愛心收藏,上架通知會第一時間提醒您喔!'},
+  {id:'s14', stage:'body', category:'product', saleType:'pre', title:'商品規格詢問', content:'商品的詳細規格、顏色及尺寸資訊都會標示在商品頁的說明欄位,建議您可以再確認一下,如果還有不清楚的地方歡迎再詢問小幫手喔!'},
+  {id:'s17', stage:'body', category:'other', saleType:'both', title:'需再確認規定的通用回覆', appendWait:true, content:'不好意思,您反映的狀況小幫手需要再確認一下相關規定,麻煩您稍等一下,確認後會盡快回覆您喔!'},
+
+  {id:'s18', stage:'close', category:null, saleType:'post', title:'售後完整結尾(含滿意度提醒)', content:'感謝您與我們聯繫!若後續仍需協助,歡迎隨時與我們聊聊,小幫手會在服務時間內儘快回覆您。\n\n由於近期訊息量較多,團隊仍在積極處理中,回覆時間可能較長,感謝您的體諒與耐心等候。\n\n對話結束將進行滿意度調查,希望能獲得您的支持與鼓勵,您的滿意度是我們持續進步的最大動力,非常感謝您的肯定與支持!💗[BS]'},
+  {id:'s19', stage:'close', category:null, saleType:'post', title:'售後簡短結尾', content:'感謝您的耐心等候與體諒,若還有其他問題都歡迎隨時與小幫手聯繫喔!祝您購物愉快![BS]'},
+  {id:'s21', stage:'close', category:null, saleType:'pre', title:'售前結尾', content:'謝謝您的詢問!如果還有其他想了解的地方,都歡迎隨時再詢問小幫手喔![BS]'}
+];
+
+let categories = [];
+let templates = [];
+let composeList = []; 
+let varsValues = {};
+let customVars = ['訂單編號']; 
+let activeStage = 'all';
+let activeCategory = 'all';
+let searchTerm = '';
+let editingId = null;
+
+let wizActiveCat = null;
+let wizSaleType = 'post';
+let sidebarMode = 'wizard';
+const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
+const SINGLE_STAGES = new Set(['open','wait','close']);
+
+function catLabel(id){ const c = categories.find(x=>x.id===id); return c ? c.label : (id||''); }
+
+async function loadCategories(){
+  try{
+    const res = localStorage.getItem(CATEGORY_STORAGE_KEY) || localStorage.getItem('categories_v2');
+    if(res){
+      const parsed = JSON.parse(res);
+      if(Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  }catch(e){ console.error(e); }
+  await saveCategories(SEED_CATEGORIES);
+  return SEED_CATEGORIES.slice();
+}
+
+async function saveCategories(list){
+  categories = list;
+  try{ localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(list)); }
+  catch(e){ console.error('儲存類型失敗', e); }
+}
+
+async function loadTemplates(){
+  try{
+    const res = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('templates_v2');
+    if(res){
+      const parsed = JSON.parse(res);
+      if(Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  }catch(e){ console.error(e); }
+  await saveTemplates(SEED_TEMPLATES);
+  return SEED_TEMPLATES.slice();
+}
+
+async function saveTemplates(list){
+  templates = list;
+  try{ 
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); 
+    updateSaveBadge();
+  }
+  catch(e){ console.error('儲存失敗', e); showToast('儲存失敗,請稍後再試', true); }
+}
+
+function loadCustomVars(){
+  try{
+    const res = localStorage.getItem(CUSTOM_VARS_KEY) || localStorage.getItem('custom_vars_v2');
+    if(res) {
+      const parsed = JSON.parse(res);
+      if(Array.isArray(parsed)) return parsed;
+    }
+  }catch(e){}
+  return ['訂單編號'];
+}
+
+function saveCustomVars(list){
+  customVars = list;
+  try{ localStorage.setItem(CUSTOM_VARS_KEY, JSON.stringify(list)); }catch(e){}
+}
+
+function updateSaveBadge(){
+  const badge = document.getElementById('saveBadge');
+  if(badge) badge.title = `已有 ${templates.length} 則話術與 ${categories.length} 個分類保存於此瀏覽器中`;
+}
+
+const IMPORT_HEADER_ALIASES = {
+  stage:['階段','stage','對話階段'],
+  category:['類型','分類','問題類型','category'],
+  saletype:['售前售後','售前/售後','情境','saletype'],
+  title:['標題','title','名稱'],
+  content:['內容','回覆','回覆內容','第一版','預設回覆','content'],
+  appendWait:['附帶查詢中','加上請稍等','附帶等待話術'],
+  hint:['提示','建議動作','動作','hint'],
+  link:['連結','link','網址']
+};
+const VARIANT_COL_KEYWORDS = ['其他回覆', '回覆方式', '版本']; 
+
+function stageFromText(s){
+  s = (s==null? '' : String(s)).trim();
+  if(/開頭/.test(s)) return 'open';
+  if(/結尾|结尾/.test(s)) return 'close';
+  if(/查詢|等待|時間/.test(s)) return 'wait';
+  if(/中段|回答|body/i.test(s)) return 'body';
+  return null;
+}
+function saleTypeFromText(s){
+  s = (s==null? '' : String(s)).trim();
+  if(/皆可|通用|都可/.test(s)) return 'both';
+  if(/售前/.test(s)) return 'pre';
+  if(/售後|售后/.test(s)) return 'post';
+  return null;
+}
+function findCol(rowKeys, aliases){
+  return rowKeys.find(k => aliases.some(a => String(k).toLowerCase().includes(a.toLowerCase())));
+}
+function findVariantCols(rowKeys){
+  return rowKeys.filter(k => VARIANT_COL_KEYWORDS.some(kw => String(k).toLowerCase().includes(kw)));
+}
+function resolveCategory(text, workingCats){
+  const label = (text==null? '' : String(text)).trim();
+  if(!label) return null;
+  let found = workingCats.find(c => c.label===label || label.includes(c.label) || c.label.includes(label));
+  if(found) return found;
+  const created = {id:'c'+Date.now()+'_'+Math.random().toString(36).slice(2,5), label, emoji:'🏷️'};
+  workingCats.push(created);
+  return created;
+}
+
+function importFromRows(rows){
+  const keys = Object.keys(rows[0] || {});
+  const col = {
+    stage: findCol(keys, IMPORT_HEADER_ALIASES.stage),
+    category: findCol(keys, IMPORT_HEADER_ALIASES.category),
+    saletype: findCol(keys, IMPORT_HEADER_ALIASES.saletype),
+    title: findCol(keys, IMPORT_HEADER_ALIASES.title),
+    content: findCol(keys, IMPORT_HEADER_ALIASES.content),
+    appendWait: findCol(keys, IMPORT_HEADER_ALIASES.appendWait),
+    hint: findCol(keys, IMPORT_HEADER_ALIASES.hint),
+    link: findCol(keys, IMPORT_HEADER_ALIASES.link)
+  };
+  const variantCols = findVariantCols(keys);
+  
+  if(!col.title || !col.content){
+    return {error:'找不到「標題」或「回覆內容」欄位,請確認 Excel 欄位名稱,或先下載範本參考格式。'};
+  }
+  const workingCats = categories.map(c=>({...c}));
+  const valid = []; let skipped = 0;
+  
+  rows.forEach((r,i)=>{
+    const title = String(r[col.title] ?? '').trim();
+    let content = String(r[col.content] ?? '').trim();
+    if(!title || !content){ skipped++; return; }
+    const stage = (col.stage ? stageFromText(r[col.stage]) : null) || 'body';
+    let category = null;
+    if(stage==='body'){
+      const catText = col.category ? String(r[col.category] ?? '').trim() : '';
+      const resolved = resolveCategory(catText, workingCats) || workingCats.find(c=>c.label==='其他') || workingCats[0];
+      category = resolved ? resolved.id : null;
+    }
+    let saleType = null;
+    if(stage==='open' || stage==='close' || stage==='body'){
+      const raw = col.saletype ? saleTypeFromText(r[col.saletype]) : null;
+      saleType = raw || (stage==='body' ? 'both' : 'post');
+    }
+    
+    let variants = [];
+    variantCols.forEach(vc => {
+      const vText = String(r[vc] ?? '').trim();
+      if(vText) {
+        const splitted = vText.split(/\n?===\n?/).map(v=>v.trim()).filter(Boolean);
+        variants.push(...splitted);
+      }
+    });
+
+    const appendWaitText = col.appendWait ? String(r[col.appendWait] ?? '').trim() : '';
+    const appendWait = stage==='body' && /是|Y|True|1/i.test(appendWaitText);
+    
+    const hint = col.hint ? String(r[col.hint] ?? '').trim() : '';
+    const link = col.link ? String(r[col.link] ?? '').trim() : '';
+    
+    valid.push({
+      id:'x'+Date.now()+'_'+i+Math.random().toString(36).slice(2,5), 
+      stage, category, saleType, title, content, variants, 
+      appendWait: appendWait || undefined,
+      hint: hint || undefined, link: link || undefined
+    });
+  });
+  
+  const existingIds = new Set(categories.map(c=>c.id));
+  const newCategories = workingCats.filter(c=>!existingIds.has(c.id));
+  return {valid, skipped, newCategories};
+}
+
+function openImportConfirmModal(result, filename){
+  const counts = {open:0, body:0, wait:0, close:0};
+  result.valid.forEach(t=> counts[t.stage]++);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>匯入 Excel 話術</h3><button class="icon-btn" id="impClose">${icon('x')}</button></div>
+      <div class="modal-body">
+        <p class="field-hint" style="margin:0;">從「${escapeHtml(filename)}」讀到 <b>${result.valid.length}</b> 則有效話術${result.skipped?`(略過 ${result.skipped} 筆缺少標題或內容的資料)`:''}:</p>
+        <p class="field-hint" style="margin:0;">開頭 ${counts.open}・中段 ${counts.body}・查詢中 ${counts.wait}・結尾 ${counts.close}</p>
+        ${result.newCategories.length ? `<p class="field-hint" style="margin:0;">將會新增問題類型:${result.newCategories.map(c=>escapeHtml(c.label)).join('、')}</p>` : ''}
+        <div class="field">
+          <label>匯入方式</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:500;font-size:13px;color:var(--ink);margin-bottom:8px;">
+            <input type="radio" name="impMode" value="append" checked style="width:auto;"> 加到目前的話術(保留本機已有的內容)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:500;font-size:13px;color:var(--ink);">
+            <input type="radio" name="impMode" value="replace" style="width:auto;"> 取代全部話術(清空現有，只保留本次匯入)
+          </label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="impCancel">取消</button>
+        <button class="btn btn-primary" id="impConfirm">${icon('check',' style="stroke:#fff;width:13px;height:13px"')} 確認匯入</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#impClose').onclick = ()=>overlay.remove();
+  overlay.querySelector('#impCancel').onclick = ()=>overlay.remove();
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  overlay.querySelector('#impConfirm').onclick = async ()=>{
+    const mode = overlay.querySelector('input[name=impMode]:checked').value;
+    templates = (mode==='replace') ? result.valid.slice() : [...result.valid, ...templates];
+    if(result.newCategories.length){
+      categories = [...categories, ...result.newCategories];
+      await saveCategories(categories);
+    }
+    await saveTemplates(templates);
+    overlay.remove();
+    renderAll();
+    renderCompose();
+    showToast(`已成功匯入並保存 ${result.valid.length} 則話術！`);
+  };
+}
+
+function exportCurrentTemplates(){
+  if(typeof XLSX==='undefined'){ showToast('匯出功能載入中,請稍後再試一次', true); return; }
+  if(!templates.length){ showToast('目前沒有話術可以匯出', true); return; }
+  
+  let maxVariants = 0;
+  templates.forEach(t=>{ if(t.variants && t.variants.length > maxVariants) maxVariants = t.variants.length; });
+  
+  const saleTypeLabel = {pre:'售前', post:'售後', both:'皆可'};
+  const rows = templates.map(t=>{
+    const row = {
+      '階段': STAGE_LABEL_SHORT[t.stage] || t.stage,
+      '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
+      '類型': t.category ? catLabel(t.category) : '',
+      '標題': t.title,
+      '回覆內容': t.content,
+      '附帶查詢中': t.appendWait ? '是' : '否'
+    };
+    for(let i=0; i<maxVariants; i++){
+      row[`回覆方式${i+2}`] = (t.variants && t.variants[i]) ? t.variants[i] : '';
+    }
+    row['提示'] = t.hint || '';
+    row['參考連結'] = t.link || '';
+    return row;
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '話術清單');
+  const dateStr = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `客服話術匯出_${dateStr}.xlsx`);
+}
+
+function openJsonBackupModal(){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>全站 JSON 備份與還原</h3><button class="icon-btn" id="bkClose">${icon('x')}</button></div>
+      <div class="modal-body">
+        <p class="field-hint" style="margin:0;">當您需要在不同電腦或瀏覽器間轉移資料，或升級 GitHub 程式版本前，可使用完整的 JSON 備份檔。</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+          <button class="btn btn-ghost" id="btnDownloadJson" style="justify-content:flex-start;">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            下載全站 JSON 備份檔
+          </button>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="bkDone">關閉</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#btnDownloadJson').onclick = ()=>{
+    const dump = {
+      version: '3.0',
+      exportedAt: new Date().toISOString(),
+      categories,
+      customVars,
+      templates
+    };
+    const blob = new Blob([JSON.stringify(dump, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `小幫手話術全站備份_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    showToast('已下載 JSON 備份檔');
+  };
+
+  overlay.querySelector('#bkClose').onclick = ()=>overlay.remove();
+  overlay.querySelector('#bkDone').onclick = ()=>overlay.remove();
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+}
+
+function escapeHtml(str){
+  return String(str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function extractVars(text){
   const re = /\{([^{}]+)\}/g; const out = []; let m;
   while((m = re.exec(text))){ if(!out.includes(m[1])) out.push(m[1]); }
   return out;
 }
 function fillPlain(text){
-  return text.replace(/\{([^{}]+)\}/g, (m,p1) => (state.varsValues[p1] && state.varsValues[p1].trim()) ? state.varsValues[p1] : m);
+  return text.replace(/\{([^{}]+)\}/g, (m,p1) => (varsValues[p1] && varsValues[p1].trim()) ? varsValues[p1] : m);
 }
 function fillHtml(text){
   const escaped = escapeHtml(text);
   return escaped.replace(/\{([^{}]+)\}/g, (m,p1) => {
-    const v = state.varsValues[p1];
+    const v = varsValues[p1];
     return (v && v.trim()) ? escapeHtml(v) : `<mark>${escapeHtml(m)}</mark>`;
   });
 }
@@ -71,7 +409,7 @@ function instanceText(t, variantIndex){
   const arr = allVariants(t);
   return arr[variantIndex] ?? arr[0] ?? '';
 }
-export function showToast(msg, warn=false){
+function showToast(msg, warn=false){
   const wrap = document.getElementById('toast-wrap');
   const el = document.createElement('div');
   el.className = 'toast' + (warn ? ' warn' : '');
@@ -93,7 +431,7 @@ async function copyText(text){
 }
 
 function setSidebarMode(mode){
-  state.sidebarMode = mode;
+  sidebarMode = mode;
   document.querySelectorAll('.mode-tab').forEach(b=> b.classList.toggle('active', b.dataset.mode===mode));
   document.getElementById('wizardPanel').style.display = mode==='wizard' ? 'flex' : 'none';
   document.getElementById('browsePanel').style.display = mode==='browse' ? 'flex' : 'none';
@@ -111,8 +449,8 @@ function linkTag(t){
 }
 function renderActionHints(){
   const box = document.getElementById('actionHints');
-  const relevant = state.composeList
-    .map(c=>state.templates.find(t=>t.id===c.tplId))
+  const relevant = composeList
+    .map(c=>templates.find(t=>t.id===c.tplId))
     .filter(t=> t && (t.hint || t.link));
   if(!relevant.length){ box.style.display='none'; box.innerHTML=''; return; }
   box.style.display='block';
@@ -127,7 +465,7 @@ function renderActionHints(){
 function wizButtonsHtml(list){
   if(!list.length) return `<span class="empty-note">這個分類還沒有話術,可以到「瀏覽全部話術」新增一則</span>`;
   return list.map(t=>{
-    const isActive = SINGLE_STAGES.has(t.stage) && state.composeList.some(c=>c.tplId===t.id);
+    const isActive = SINGLE_STAGES.has(t.stage) && composeList.some(c=>c.tplId===t.id);
     const variantsCount = (t.variants || []).length + 1;
     let selHtml = '';
     if (variantsCount > 1) {
@@ -151,31 +489,31 @@ function attachWizEvents(container){
   });
 }
 function renderWizard(){
-  document.getElementById('saleTypePre').classList.toggle('active', state.wizSaleType==='pre');
-  document.getElementById('saleTypePost').classList.toggle('active', state.wizSaleType==='post');
+  document.getElementById('saleTypePre').classList.toggle('active', wizSaleType==='pre');
+  document.getElementById('saleTypePost').classList.toggle('active', wizSaleType==='post');
 
-  const openList = state.templates.filter(t=>t.stage==='open' && (t.saleType||'post')===state.wizSaleType);
+  const openList = templates.filter(t=>t.stage==='open' && (t.saleType||'post')===wizSaleType);
   const wizOpen = document.getElementById('wizOpen');
   wizOpen.innerHTML = wizButtonsHtml(openList);
   attachWizEvents(wizOpen);
 
   const catWrap = document.getElementById('wizBodyCat');
-  catWrap.innerHTML = state.categories.map(c=>
-    `<button type="button" class="wiz-chip ${state.wizActiveCat===c.id?'active':''}" data-cat="${c.id}"><span>${c.emoji}</span> ${escapeHtml(c.label)}</button>`
+  catWrap.innerHTML = categories.map(c=>
+    `<button type="button" class="wiz-chip ${wizActiveCat===c.id?'active':''}" data-cat="${c.id}"><span>${c.emoji}</span> ${escapeHtml(c.label)}</button>`
   ).join('') + `<button type="button" class="wiz-chip" id="btnManageCats">${icon('settings')} 管理類型</button>`;
   catWrap.querySelectorAll('[data-cat]').forEach(b=>{
-    b.onclick = ()=>{ state.wizActiveCat = (state.wizActiveCat===b.dataset.cat) ? null : b.dataset.cat; renderWizardBodySub(); };
+    b.onclick = ()=>{ wizActiveCat = (wizActiveCat===b.dataset.cat) ? null : b.dataset.cat; renderWizardBodySub(); };
   });
   const manageBtn = document.getElementById('btnManageCats');
   if(manageBtn) manageBtn.onclick = openCategoryModal;
   renderWizardBodySub();
 
-  const waitList = state.templates.filter(t=>t.stage==='wait');
+  const waitList = templates.filter(t=>t.stage==='wait');
   const wizWait = document.getElementById('wizWait');
   wizWait.innerHTML = wizButtonsHtml(waitList);
   attachWizEvents(wizWait);
 
-  const closeList = state.templates.filter(t=>t.stage==='close' && (t.saleType||'post')===state.wizSaleType);
+  const closeList = templates.filter(t=>t.stage==='close' && (t.saleType||'post')===wizSaleType);
   const wizClose = document.getElementById('wizClose');
   wizClose.innerHTML = wizButtonsHtml(closeList);
   attachWizEvents(wizClose);
@@ -183,12 +521,12 @@ function renderWizard(){
 function renderWizardBodySub(){
   const subWrap = document.getElementById('wizBodySub');
   const subLabel = document.getElementById('wizBodySubLabel');
-  if(!state.wizActiveCat){ subWrap.innerHTML=''; subLabel.style.display='none'; return; }
+  if(!wizActiveCat){ subWrap.innerHTML=''; subLabel.style.display='none'; return; }
   subLabel.style.display='block';
-  const list = state.templates.filter(t=>{
-    if(t.stage!=='body' || t.category!==state.wizActiveCat) return false;
+  const list = templates.filter(t=>{
+    if(t.stage!=='body' || t.category!==wizActiveCat) return false;
     const st = t.saleType || 'both';
-    return st==='both' || st===state.wizSaleType;
+    return st==='both' || st===wizSaleType;
   });
   subWrap.innerHTML = wizButtonsHtml(list);
   attachWizEvents(subWrap);
@@ -200,34 +538,34 @@ function renderStageChips(){
   wrap.innerHTML = stages.map(s=>{
     const label = s==='all' ? '全部' : STAGE_LABEL_SHORT[s];
     const cls = s==='all' ? '' : 'stage-'+s;
-    return `<button class="chip ${cls} ${state.activeStage===s?'active':''}" data-stage="${s}">${label}</button>`;
+    return `<button class="chip ${cls} ${activeStage===s?'active':''}" data-stage="${s}">${label}</button>`;
   }).join('');
   wrap.querySelectorAll('.chip').forEach(btn=>{
-    btn.onclick = ()=>{ state.activeStage = btn.dataset.stage; state.activeCategory='all'; renderAll(); };
+    btn.onclick = ()=>{ activeStage = btn.dataset.stage; activeCategory='all'; renderAll(); };
   });
-  document.getElementById('categoryWrap').style.display = (state.activeStage==='body' || state.activeStage==='all') ? 'block' : 'none';
+  document.getElementById('categoryWrap').style.display = (activeStage==='body' || activeStage==='all') ? 'block' : 'none';
 }
 function renderCategoryChips(){
   const cats = ['all', ...categories.map(c=>c.id)];
   const wrap = document.getElementById('categoryChips');
   wrap.innerHTML = cats.map(c=>{
     const label = c==='all' ? '全部類型' : catLabel(c);
-    return `<button class="chip ${state.activeCategory===c?'active':''}" data-cat="${c}">${label}</button>`;
+    return `<button class="chip ${activeCategory===c?'active':''}" data-cat="${c}">${label}</button>`;
   }).join('') + `<button class="chip" id="btnManageCats2">${icon('settings')} 管理</button>`;
   wrap.querySelectorAll('[data-cat]').forEach(btn=>{
-    btn.onclick = ()=>{ state.activeCategory = btn.dataset.cat; renderList(); };
+    btn.onclick = ()=>{ activeCategory = btn.dataset.cat; renderList(); };
   });
   const manageBtn2 = document.getElementById('btnManageCats2');
   if(manageBtn2) manageBtn2.onclick = openCategoryModal;
 }
 
 function filteredTemplates(){
-  return state.templates.filter(t=>{
-    if(state.activeStage!=='all' && t.stage!==state.activeStage) return false;
-    if(state.activeStage!=='wait' && state.activeStage!=='open' && state.activeStage!=='close' && state.activeCategory!=='all' && t.category!==state.activeCategory) return false;
-    if(state.searchTerm){
+  return templates.filter(t=>{
+    if(activeStage!=='all' && t.stage!==activeStage) return false;
+    if(activeStage!=='wait' && activeStage!=='open' && activeStage!=='close' && activeCategory!=='all' && t.category!==activeCategory) return false;
+    if(searchTerm){
       const hay = (t.title+' '+t.content+' '+(t.variants||[]).join(' ')).toLowerCase();
-      if(!hay.includes(state.searchTerm.toLowerCase())) return false;
+      if(!hay.includes(searchTerm.toLowerCase())) return false;
     }
     return true;
   });
@@ -284,25 +622,25 @@ function renderList(){
 function genInstId(){ return 'i'+Date.now()+Math.random().toString(36).slice(2,6); }
 
 function insertTemplate(tplId, variantIndex = 0, autoAppended = false){
-  const t = state.templates.find(x=>x.id===tplId);
+  const t = templates.find(x=>x.id===tplId);
   if(!t) return;
   if(SINGLE_STAGES.has(t.stage)){
-    state.composeList = state.composeList.filter(c=>{
-      const ct = state.templates.find(x=>x.id===c.tplId);
+    composeList = composeList.filter(c=>{
+      const ct = templates.find(x=>x.id===c.tplId);
       return !(ct && ct.stage===t.stage);
     });
   }
-  let idx = state.composeList.length;
-  for(let i=0;i<state.composeList.length;i++){
-    const ct = state.templates.find(x=>x.id===state.composeList[i].tplId);
+  let idx = composeList.length;
+  for(let i=0;i<composeList.length;i++){
+    const ct = templates.find(x=>x.id===composeList[i].tplId);
     if(ct && STAGE_ORDER[ct.stage] > STAGE_ORDER[t.stage]){ idx = i; break; }
   }
-  state.composeList.splice(idx, 0, {instId:genInstId(), tplId, variantIndex});
+  composeList.splice(idx, 0, {instId:genInstId(), tplId, variantIndex});
   
   if(!autoAppended && t.stage === 'body' && t.appendWait) {
-    const hasWait = state.composeList.some(c => state.templates.find(x => x.id === c.tplId)?.stage === 'wait');
+    const hasWait = composeList.some(c => templates.find(x => x.id === c.tplId)?.stage === 'wait');
     if (!hasWait) {
-      const waitTpl = state.templates.find(x => x.stage === 'wait'); 
+      const waitTpl = templates.find(x => x.stage === 'wait'); 
       if (waitTpl) {
         insertTemplate(waitTpl.id, 0, true);
         showToast('已加入並自動附帶查詢中話術');
@@ -317,16 +655,16 @@ function insertTemplate(tplId, variantIndex = 0, autoAppended = false){
   renderCompose();
   renderWizard();
 }
-function removeInst(instId){ state.composeList = state.composeList.filter(c=>c.instId!==instId); renderCompose(); renderWizard(); }
+function removeInst(instId){ composeList = composeList.filter(c=>c.instId!==instId); renderCompose(); renderWizard(); }
 function moveInst(instId, dir){
-  const idx = state.composeList.findIndex(c=>c.instId===instId);
+  const idx = composeList.findIndex(c=>c.instId===instId);
   const newIdx = idx+dir;
-  if(newIdx<0 || newIdx>=state.composeList.length) return;
-  [state.composeList[idx], state.composeList[newIdx]] = [state.composeList[newIdx], state.composeList[idx]];
+  if(newIdx<0 || newIdx>=composeList.length) return;
+  [composeList[idx], composeList[newIdx]] = [composeList[newIdx], composeList[idx]];
   renderCompose();
 }
 function setVariant(instId, variantIndex){
-  const c = state.composeList.find(x=>x.instId===instId);
+  const c = composeList.find(x=>x.instId===instId);
   if(!c) return;
   c.variantIndex = variantIndex;
   renderBubblesOnly();
@@ -334,8 +672,8 @@ function setVariant(instId, variantIndex){
 
 function currentVars(){
   const all = [];
-  state.composeList.forEach(c=>{
-    const t = state.templates.find(x=>x.id===c.tplId);
+  composeList.forEach(c=>{
+    const t = templates.find(x=>x.id===c.tplId);
     if(t) extractVars(instanceText(t, c.variantIndex||0)).forEach(v=>{ if(!all.includes(v)) all.push(v); });
   });
   return all;
@@ -351,16 +689,16 @@ function renderVarBar(){
   bar.innerHTML = `<span class="var-bar-label">填入變數</span>` + allVars.map(v=>`
     <div class="var-field">
       <label>${escapeHtml(v)}</label>
-      <input type="text" data-var="${escapeHtml(v)}" value="${escapeHtml(state.varsValues[v]||'')}" placeholder="輸入內容">
+      <input type="text" data-var="${escapeHtml(v)}" value="${escapeHtml(varsValues[v]||'')}" placeholder="輸入內容">
     </div>`).join('');
     
   bar.querySelectorAll('input').forEach(inp=>{
-    inp.oninput = ()=>{ state.varsValues[inp.dataset.var] = inp.value; syncVarInputs(); };
+    inp.oninput = ()=>{ varsValues[inp.dataset.var] = inp.value; syncVarInputs(); };
   });
 }
 function syncVarInputs(){
   document.querySelectorAll('[data-var]').forEach(inp=>{
-    const v = state.varsValues[inp.dataset.var] || '';
+    const v = varsValues[inp.dataset.var] || '';
     if(inp.value !== v) inp.value = v;
   });
   renderBubblesOnly();
@@ -371,14 +709,14 @@ function renderCompose(){
   renderActionHints();
   const area = document.getElementById('composeArea');
   const actions = document.getElementById('composeActions');
-  if(!state.composeList.length){
+  if(!composeList.length){
     area.innerHTML = `<div class="compose-empty">${icon('chat')}<p>從左側點選「加入回覆」<br>開始組合給客人的訊息</p></div>`;
     actions.style.display='none';
     return;
   }
   actions.style.display='flex';
-  area.innerHTML = state.composeList.map(c=>{
-    const t = state.templates.find(x=>x.id===c.tplId);
+  area.innerHTML = composeList.map(c=>{
+    const t = templates.find(x=>x.id===c.tplId);
     if(!t) return '';
     const variants = allVariants(t);
     const vi = c.variantIndex || 0;
@@ -419,11 +757,11 @@ function renderCompose(){
     if(sel) sel.onchange = (e)=> setVariant(instId, parseInt(e.target.value));
     
     row.querySelector('[data-act=copy]').onclick = async ()=>{
-      const c = state.composeList.find(x=>x.instId===instId);
-      const t = state.templates.find(x=>x.id===c.tplId);
+      const c = composeList.find(x=>x.instId===instId);
+      const t = templates.find(x=>x.id===c.tplId);
       const text = instanceText(t, c.variantIndex||0);
       const plain = fillPlain(text);
-      const hasEmpty = extractVars(text).some(v=>!(state.varsValues[v]&&state.varsValues[v].trim()));
+      const hasEmpty = extractVars(text).some(v=>!(varsValues[v]&&varsValues[v].trim()));
       const ok = await copyText(plain);
       if(ok) showToast(hasEmpty ? '已複製,但還有變數未填喔' : '已複製這段', hasEmpty);
       else showToast('複製失敗,請手動選取', true);
@@ -433,8 +771,8 @@ function renderCompose(){
 function renderBubblesOnly(){
   document.querySelectorAll('.bubble-row').forEach(row=>{
     const instId = row.dataset.inst;
-    const c = state.composeList.find(x=>x.instId===instId);
-    const t = state.templates.find(x=>x.id===c.tplId);
+    const c = composeList.find(x=>x.instId===instId);
+    const t = templates.find(x=>x.id===c.tplId);
     row.querySelector('[data-content]').innerHTML = fillHtml(instanceText(t, c.variantIndex||0));
     const variants = allVariants(t);
     const tag = row.querySelector('.bubble-stage-tag');
@@ -443,8 +781,8 @@ function renderBubblesOnly(){
 }
 
 function openModal(id=null){
-  state.editingId = id;
-  const t = id ? state.templates.find(x=>x.id===id) : {stage:'body',category:(state.categories[0]||{}).id||null,saleType:'both',title:'',content:'',variants:[], appendWait:false};
+  editingId = id;
+  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,saleType:'both',title:'',content:'',variants:[], appendWait:false};
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -464,7 +802,7 @@ function openModal(id=null){
           <div class="field" id="mCatWrap" style="display:${t.stage==='body'?'block':'none'}">
             <label>問題類型</label>
             <select id="mCategory">
-              ${state.categories.map(c=>`<option value="${c.id}" ${t.category===c.id?'selected':''}>${escapeHtml(c.label)}</option>`).join('')}
+              ${categories.map(c=>`<option value="${c.id}" ${t.category===c.id?'selected':''}>${escapeHtml(c.label)}</option>`).join('')}
             </select>
           </div>
           <div class="field" id="mSaleWrap" style="display:${(t.stage==='open'||t.stage==='close'||t.stage==='body')?'block':'none'}">
@@ -566,12 +904,12 @@ function openModal(id=null){
     
     if(!title || !content){ showToast('請填寫標題與內容', true); return; }
     if(id){
-      const idx = state.templates.findIndex(x=>x.id===id);
-      state.templates[idx] = {...templates[idx], stage, category, saleType, title, content, variants, appendWait, hint, link};
+      const idx = templates.findIndex(x=>x.id===id);
+      templates[idx] = {...templates[idx], stage, category, saleType, title, content, variants, appendWait, hint, link};
     }else{
-      state.templates.unshift({id:'u'+Date.now(), stage, category, saleType, title, content, variants, appendWait, hint, link});
+      templates.unshift({id:'u'+Date.now(), stage, category, saleType, title, content, variants, appendWait, hint, link});
     }
-    await storage.saveTemplates(state.templates);
+    await saveTemplates(templates);
     overlay.remove();
     renderAll();
     renderCompose();
@@ -607,8 +945,8 @@ function openCategoryModal(){
 
   function renderCtList(){
     const listEl = overlay.querySelector('#ctList');
-    listEl.innerHTML = state.categories.map(c=>{
-      const count = state.templates.filter(t=>t.stage==='body' && t.category===c.id).length;
+    listEl.innerHTML = categories.map(c=>{
+      const count = templates.filter(t=>t.stage==='body' && t.category===c.id).length;
       return `
       <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;">
         <span style="font-size:15px;">${c.emoji}</span>
@@ -629,9 +967,9 @@ function openCategoryModal(){
     const label = overlay.querySelector('#ctNewLabel').value.trim();
     const emoji = overlay.querySelector('#ctEmoji').value.trim() || '🏷️';
     if(!label){ showToast('請輸入類型名稱', true); return; }
-    if(state.categories.some(c=>c.label===label)){ showToast('已經有這個類型了', true); return; }
-    state.categories = [...categories, {id:'c'+Date.now()+Math.random().toString(36).slice(2,5), label, emoji}];
-    storage.saveCategories(state.categories);
+    if(categories.some(c=>c.label===label)){ showToast('已經有這個類型了', true); return; }
+    categories = [...categories, {id:'c'+Date.now()+Math.random().toString(36).slice(2,5), label, emoji}];
+    saveCategories(categories);
     overlay.querySelector('#ctNewLabel').value = '';
     renderCtList();
     renderAll();
@@ -643,32 +981,32 @@ function openCategoryModal(){
 }
 
 function moveCategory(catId, dir, after){
-  const idx = state.categories.findIndex(c=>c.id===catId);
+  const idx = categories.findIndex(c=>c.id===catId);
   const newIdx = idx + dir;
-  if(idx<0 || newIdx<0 || newIdx>=state.categories.length) return;
-  state.categories = state.categories.slice();
-  [state.categories[idx], state.categories[newIdx]] = [state.categories[newIdx], state.categories[idx]];
-  storage.saveCategories(state.categories);
+  if(idx<0 || newIdx<0 || newIdx>=categories.length) return;
+  categories = categories.slice();
+  [categories[idx], categories[newIdx]] = [categories[newIdx], categories[idx]];
+  saveCategories(categories);
   if(after) after();
   renderAll();
 }
 function deleteCategory(catId, afterDelete){
-  if(state.categories.length<=1){ showToast('至少要保留一個問題類型', true); return; }
-  const cat = state.categories.find(c=>c.id===catId);
+  if(categories.length<=1){ showToast('至少要保留一個問題類型', true); return; }
+  const cat = categories.find(c=>c.id===catId);
   if(!cat) return;
-  const affected = state.templates.filter(t=>t.stage==='body' && t.category===catId).length;
+  const affected = templates.filter(t=>t.stage==='body' && t.category===catId).length;
   const msg = affected
     ? `刪除「${cat.label}」會把底下 ${affected} 則中段話術移到其他類型,要繼續嗎?`
     : `確定要刪除「${cat.label}」這個類型嗎?`;
   
   customConfirm(msg, () => {
-    state.categories = state.categories.filter(c=>c.id!==catId);
-    const fallback = state.categories.find(c=>c.label==='其他') || state.categories[0];
-    state.templates.forEach(t=>{ if(t.stage==='body' && t.category===catId) t.category = fallback.id; });
-    storage.saveCategories(state.categories);
-    storage.saveTemplates(state.templates);
-    if(state.wizActiveCat===catId) state.wizActiveCat = null;
-    if(state.activeCategory===catId) state.activeCategory = 'all';
+    categories = categories.filter(c=>c.id!==catId);
+    const fallback = categories.find(c=>c.label==='其他') || categories[0];
+    templates.forEach(t=>{ if(t.stage==='body' && t.category===catId) t.category = fallback.id; });
+    saveCategories(categories);
+    saveTemplates(templates);
+    if(wizActiveCat===catId) wizActiveCat = null;
+    if(activeCategory===catId) activeCategory = 'all';
     if(afterDelete) afterDelete();
     renderAll();
     renderCompose();
@@ -700,11 +1038,11 @@ function openVarsModal(){
 
   function renderCvList(){
     const listEl = overlay.querySelector('#cvList');
-    if(!state.customVars.length) {
+    if(!customVars.length) {
       listEl.innerHTML = `<span style="font-size:12px;color:var(--ink-faint);">目前沒有常設參數</span>`;
       return;
     }
-    listEl.innerHTML = state.customVars.map((v, i)=>`
+    listEl.innerHTML = customVars.map((v, i)=>`
       <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--surface-alt);">
         <div style="flex:1;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;">
           <span style="font-size:13px;font-weight:700;">${escapeHtml(v)}</span>
@@ -715,8 +1053,8 @@ function openVarsModal(){
     
     listEl.querySelectorAll('[data-del]').forEach(btn=>{
       btn.onclick = ()=> {
-        state.customVars.splice(Number(btn.dataset.del), 1);
-        storage.saveCustomVars(state.customVars);
+        customVars.splice(Number(btn.dataset.del), 1);
+        saveCustomVars(customVars);
         renderCvList();
         renderVarBar();
       };
@@ -727,10 +1065,10 @@ function openVarsModal(){
   overlay.querySelector('#cvAdd').onclick = ()=>{
     const label = overlay.querySelector('#cvNewLabel').value.trim();
     if(!label){ showToast('請輸入參數名稱', true); return; }
-    if(state.customVars.includes(label)){ showToast('已經有這個參數了', true); return; }
+    if(customVars.includes(label)){ showToast('已經有這個參數了', true); return; }
     
-    state.customVars.push(label);
-    storage.saveCustomVars(state.customVars);
+    customVars.push(label);
+    saveCustomVars(customVars);
     overlay.querySelector('#cvNewLabel').value = '';
     renderCvList();
     renderVarBar();
@@ -744,9 +1082,9 @@ function openVarsModal(){
 
 function deleteTemplate(id){
   customConfirm('確定要刪除這則話術嗎？', () => {
-    state.templates = state.templates.filter(t => t.id !== id);
-    storage.saveTemplates(state.templates);
-    state.composeList = state.composeList.filter(c => c.tplId !== id);
+    templates = templates.filter(t => t.id !== id);
+    saveTemplates(templates);
+    composeList = composeList.filter(c => c.tplId !== id);
     renderAll();
     renderCompose();
     showToast('已刪除話術');
@@ -758,14 +1096,14 @@ function renderAll(){
   renderCategoryChips();
   renderList();
   renderWizard();
-  document.getElementById('statCount').textContent = state.templates.length;
+  document.getElementById('statCount').textContent = templates.length;
   updateSaveBadge();
 }
 
 async function init(){
-  state.customVars = storage.loadCustomVars();
-  state.categories = await storage.loadCategories();
-  state.templates = await storage.loadTemplates();
+  customVars = loadCustomVars();
+  categories = await loadCategories();
+  templates = await loadTemplates();
   
   document.getElementById('btnExport').onclick = exportCurrentTemplates;
   document.getElementById('btnBackupModal').onclick = openJsonBackupModal;
@@ -782,7 +1120,13 @@ async function init(){
         try{
           const dump = JSON.parse(re.target.result);
           if(dump.templates && Array.isArray(dump.templates)){
-            await importer.restoreJsonBackup(dump);
+            templates = dump.templates;
+            if(dump.categories && Array.isArray(dump.categories)) categories = dump.categories;
+            if(dump.customVars && Array.isArray(dump.customVars)) customVars = dump.customVars;
+            
+            await saveTemplates(templates);
+            await saveCategories(categories);
+            saveCustomVars(customVars);
             
             renderAll();
             renderCompose();
@@ -807,7 +1151,7 @@ async function init(){
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws);
         if(!rows.length) throw new Error('檔案是空的');
-        const result = importer.importFromRows(rows);
+        const result = importFromRows(rows);
         if(result.error) showToast(result.error, true);
         else openImportConfirmModal(result, file.name);
       }catch(err){
@@ -823,11 +1167,11 @@ async function init(){
   
   document.getElementById('btnReset').onclick = ()=>{
     customConfirm('確定要還原為預設話術嗎？這會清除您所有的自訂內容與匯入資料。', async () => {
-      await storage.saveTemplates(storage.SEED_TEMPLATES);
-      await storage.saveCategories(storage.SEED_CATEGORIES);
-      state.templates = storage.SEED_TEMPLATES.slice();
-      state.categories = storage.SEED_CATEGORIES.slice();
-      state.composeList = [];
+      await saveTemplates(SEED_TEMPLATES);
+      await saveCategories(SEED_CATEGORIES);
+      templates = SEED_TEMPLATES.slice();
+      categories = SEED_CATEGORIES.slice();
+      composeList = [];
       renderAll();
       renderCompose();
       showToast('已還原為預設話術');
@@ -835,23 +1179,23 @@ async function init(){
   };
 
   document.getElementById('btnClear').onclick = ()=>{
-    state.composeList = []; renderCompose(); renderWizard();
+    composeList = []; renderCompose(); renderWizard();
   };
   
   document.getElementById('btnCopyAll').onclick = async ()=>{
-    if(!state.composeList.length) return;
-    let fullText = state.composeList.map(c=>{
-      const t = state.templates.find(x=>x.id===c.tplId);
+    if(!composeList.length) return;
+    let fullText = composeList.map(c=>{
+      const t = templates.find(x=>x.id===c.tplId);
       return fillPlain(instanceText(t, c.variantIndex||0));
     }).join('\n\n');
-    const hasEmpty = currentVars().some(v=>!(state.varsValues[v]&&state.varsValues[v].trim()));
+    const hasEmpty = currentVars().some(v=>!(varsValues[v]&&varsValues[v].trim()));
     const ok = await copyText(fullText);
     if(ok) showToast(hasEmpty ? '已複製全部,但還有變數未填喔' : '已複製全部回覆', hasEmpty);
     else showToast('複製失敗', true);
   };
 
   document.getElementById('searchInput').oninput = (e)=>{
-    state.searchTerm = e.target.value;
+    searchTerm = e.target.value;
     renderList();
   };
 
@@ -859,8 +1203,8 @@ async function init(){
     b.onclick = ()=> setSidebarMode(b.dataset.mode);
   });
 
-  document.getElementById('saleTypePre').onclick = ()=>{ state.wizSaleType='pre'; renderWizard(); };
-  document.getElementById('saleTypePost').onclick = ()=>{ state.wizSaleType='post'; renderWizard(); };
+  document.getElementById('saleTypePre').onclick = ()=>{ wizSaleType='pre'; renderWizard(); };
+  document.getElementById('saleTypePost').onclick = ()=>{ wizSaleType='post'; renderWizard(); };
 
   document.getElementById('btnManageVars').onclick = openVarsModal;
 
