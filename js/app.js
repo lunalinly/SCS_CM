@@ -183,6 +183,7 @@ const IMPORT_HEADER_ALIASES = {
   appendWait:['附帶查詢中','加上請稍等','附帶等待話術'],
   hint:['提示','建議動作','動作','hint'],
   guidanceSteps:['操作步驟','提示步驟','guidanceSteps'],
+  guidanceStepLinks:['操作步驟連結','步驟連結','guidanceStepLinks'],
   linkLabel:['參考連結名稱','連結名稱','linkLabel'],
   link:['參考連結','連結','link','網址']
 };
@@ -245,6 +246,7 @@ function importFromRows(rows){
     appendWait: findCol(keys, IMPORT_HEADER_ALIASES.appendWait),
     hint: findCol(keys, IMPORT_HEADER_ALIASES.hint),
     guidanceSteps: findCol(keys, IMPORT_HEADER_ALIASES.guidanceSteps),
+    guidanceStepLinks: findCol(keys, IMPORT_HEADER_ALIASES.guidanceStepLinks),
     linkLabel: findCol(keys, IMPORT_HEADER_ALIASES.linkLabel),
     link: findCol(keys, IMPORT_HEADER_ALIASES.link)
   };
@@ -299,9 +301,10 @@ function importFromRows(rows){
     const appendWait = stage==='body' && /是|Y|True|1/i.test(appendWaitText);
     
     const stepSource = col.guidanceSteps ? String(r[col.guidanceSteps] ?? '').trim() : (col.hint ? String(r[col.hint] ?? '').trim() : '');
+    const stepLinks = col.guidanceStepLinks ? String(r[col.guidanceStepLinks] ?? '').split(/\r?\n/).map(v=>v.trim()) : [];
     const linkSource = col.link ? String(r[col.link] ?? '').trim() : '';
     const linkLabels = col.linkLabel ? String(r[col.linkLabel] ?? '').split(/\r?\n/).map(v=>v.trim()) : [];
-    const guidance = stepSource.split(/\r?\n/).map(text=>text.trim()).filter(Boolean).map(text=>({type:'step', text}));
+    const guidance = stepSource.split(/\r?\n/).map(text=>text.trim()).filter(Boolean).map((text, idx)=>({type:'step', text, url:stepLinks[idx] || undefined}));
     linkSource.split(/\r?\n/).map(url=>url.trim()).filter(Boolean).forEach((url, idx)=>{
       guidance.push({type:'link', label:linkLabels[idx] || '參考連結', url});
     });
@@ -489,7 +492,7 @@ function exportCurrentTemplates(){
   const saleTypeLabel = {pre:'售前', post:'售後', both:'皆可'};
   const rows = templates.map(t=>{
     const guidance = guidanceFor(t);
-    const steps = guidance.filter(item=>item.type==='step').map(item=>item.text);
+    const steps = guidance.filter(item=>item.type==='step');
     const links = guidance.filter(item=>item.type==='link');
     const row = {
       '階段': STAGE_LABEL_SHORT[t.stage] || t.stage,
@@ -499,7 +502,8 @@ function exportCurrentTemplates(){
       '標題': t.title,
       '預設按鍵名稱': t.defaultVariantLabel || '預設回覆',
       '回覆內容': t.content,
-      '操作步驟': steps.join('\n'),
+      '操作步驟': steps.map(item=>item.text).join('\n'),
+      '操作步驟連結': steps.map(item=>item.url || '').join('\n'),
       '參考連結名稱': links.map(item=>item.label || '參考連結').join('\n'),
       '參考連結': links.map(item=>item.url).join('\n'),
       '附帶查詢中': t.appendWait ? '是' : '否'
@@ -509,7 +513,7 @@ function exportCurrentTemplates(){
       row[`回覆方式${i+2}`] = (t.variants && t.variants[i]) ? t.variants[i] : '';
     }
     // 保留舊欄位，舊版匯入檔仍可讀取；新欄位則完整保留多個步驟與連結。
-    row['提示'] = steps[0] || t.hint || '';
+    row['提示'] = (steps[0]||{}).text || t.hint || '';
     return row;
   });
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -651,6 +655,9 @@ function renderActionHints(){
     const actions = guidanceFor(t).map((item, i)=>{
       if(item.type==='link'){
         return `<a class="btn btn-ghost btn-sm" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${icon('link','style="width:12px;height:12px"')} ${escapeHtml(item.label||'參考連結')}</a>`;
+      }
+      if(item.url){
+        return `<a class="btn btn-ghost btn-sm" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${i+1}. ${escapeHtml(item.text)} ${icon('link','style="width:12px;height:12px"')}</a>`;
       }
       return `<span class="btn btn-ghost btn-sm" style="cursor:default;">${i+1}. ${escapeHtml(item.text)}</span>`;
     }).join('');
@@ -1134,6 +1141,7 @@ function openModal(id=null){
   let guidanceDrafts = guidanceFor(t).map(item=>({...item}));
   function readGuidanceDrafts(){
     overlay.querySelectorAll('.mGuidanceText').forEach(inp=>{ guidanceDrafts[Number(inp.dataset.idx)].text = inp.value; });
+    overlay.querySelectorAll('.mGuidanceStepUrl').forEach(inp=>{ guidanceDrafts[Number(inp.dataset.idx)].url = inp.value; });
     overlay.querySelectorAll('.mGuidanceLabel').forEach(inp=>{ guidanceDrafts[Number(inp.dataset.idx)].label = inp.value; });
     overlay.querySelectorAll('.mGuidanceUrl').forEach(inp=>{ guidanceDrafts[Number(inp.dataset.idx)].url = inp.value; });
   }
@@ -1144,7 +1152,7 @@ function openModal(id=null){
       if(item.type==='link'){
         return `<div style="display:flex;gap:6px;align-items:flex-start;"><div style="flex:1;display:flex;flex-direction:column;gap:6px;"><input class="mGuidanceLabel" data-idx="${i}" value="${escapeHtml(item.label||'參考連結')}" placeholder="連結按鍵名稱"><input class="mGuidanceUrl" data-idx="${i}" value="${escapeHtml(item.url||'')}" placeholder="https://..."></div><button type="button" class="icon-btn" data-remove-guidance="${i}" title="刪除">${icon('trash')}</button></div>`;
       }
-      return `<div style="display:flex;gap:6px;align-items:flex-start;"><input class="mGuidanceText" data-idx="${i}" value="${escapeHtml(item.text||'')}" placeholder="例如：開啟後台訂單頁面查詢" style="flex:1;"><button type="button" class="icon-btn" data-remove-guidance="${i}" title="刪除">${icon('trash')}</button></div>`;
+      return `<div style="display:flex;gap:6px;align-items:flex-start;"><div style="flex:1;display:flex;flex-direction:column;gap:6px;"><input class="mGuidanceText" data-idx="${i}" value="${escapeHtml(item.text||'')}" placeholder="步驟說明，例如：開啟後台訂單頁面查詢"><input class="mGuidanceStepUrl" data-idx="${i}" value="${escapeHtml(item.url||'')}" placeholder="此步驟的網址（選填，https://...）"></div><button type="button" class="icon-btn" data-remove-guidance="${i}" title="刪除">${icon('trash')}</button></div>`;
     }).join('');
     wrap.querySelectorAll('[data-remove-guidance]').forEach(btn=>btn.onclick=()=>{
       readGuidanceDrafts();
@@ -1155,7 +1163,7 @@ function openModal(id=null){
   renderGuidanceList();
   overlay.querySelector('#mAddStep').onclick = ()=>{
     readGuidanceDrafts();
-    guidanceDrafts.push({type:'step',text:''});
+    guidanceDrafts.push({type:'step',text:'',url:''});
     renderGuidanceList();
   };
   overlay.querySelector('#mAddLink').onclick = ()=>{
@@ -1187,7 +1195,7 @@ function openModal(id=null){
       item.type==='link' ? String(item.url||'').trim() : String(item.text||'').trim()
     ).map(item=>item.type==='link'
       ? {type:'link', label:String(item.label||'參考連結').trim() || '參考連結', url:String(item.url).trim()}
-      : {type:'step', text:String(item.text).trim()}
+      : {type:'step', text:String(item.text).trim(), url:String(item.url||'').trim() || undefined}
     );
     // 同時寫回舊欄位，讓舊備份與舊資料仍能正常顯示。
     const hint = (guidance.find(item=>item.type==='step')||{}).text || undefined;
