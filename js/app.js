@@ -1069,6 +1069,8 @@ function setVariant(instId, variantIndex){
   const c = composeList.find(x=>x.instId===instId);
   if(!c) return;
   c.variantIndex = variantIndex;
+  // 不同細項可能使用不同的 {變數}，切換後立即同步上方填入欄位。
+  renderVarBar();
   renderBubblesOnly();
 }
 
