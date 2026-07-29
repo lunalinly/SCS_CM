@@ -87,7 +87,9 @@
         <div class="wiz-step-head"><span class="step-num">2</span>中段回答</div>
         <p class="wiz-sub-label">先選問題大類型</p>
         <div class="wiz-btns" id="wizBodyCat"></div>
-        <p class="wiz-sub-label" id="wizBodySubLabel" style="display:none;">再選對應的小類型</p>
+        <p class="wiz-sub-label" id="wizSubcategoryLabel" style="display:none;">再選對應的小類型</p>
+        <div class="wiz-btns" id="wizSubcategory"></div>
+        <p class="wiz-sub-label" id="wizBodySubLabel" style="display:none;">選擇回覆選項</p>
         <div class="wiz-btns" id="wizBodySub"></div>
       </div>
       <div class="wiz-step">
@@ -106,8 +108,12 @@
         <p class="filter-label">依對話階段</p>
         <div class="chip-row" id="stageChips"></div>
         <div class="sub-filters" id="categoryWrap" style="display:none;">
-          <p class="filter-label">依問題類型</p>
+          <p class="filter-label">依大類型</p>
           <div class="chip-row" id="categoryChips"></div>
+        </div>
+        <div class="sub-filters" id="subcategoryWrap" style="display:none;">
+          <p class="filter-label">依小類型</p>
+          <div class="chip-row" id="subcategoryChips"></div>
         </div>
       </div>
       <div class="list-scroll" id="listScroll"></div>
