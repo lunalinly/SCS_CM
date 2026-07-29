@@ -360,7 +360,7 @@ function templateFingerprint(t){
   return JSON.stringify([
     t.stage || '', t.category || '', t.subcategory || '', t.saleType || '', t.title || '', t.defaultVariantLabel || '', t.content || '',
     Array.isArray(t.variants) ? t.variants : [], Array.isArray(t.variantLabels) ? t.variantLabels : [],
-    !!t.appendWait, t.hint || '', t.link || ''
+    Array.isArray(t.guidance) ? t.guidance : [], !!t.appendWait, t.hint || '', t.link || ''
   ]);
 }
 
@@ -602,11 +602,23 @@ function setSidebarMode(mode){
     ? '點按鈕就會依順序組進右邊的回覆'
     : '點卡片上「加入回覆」即可組合回覆';
 }
+function guidanceFor(t){
+  if(Array.isArray(t.guidance) && t.guidance.length){
+    return t.guidance.filter(item=>item && ((item.type==='step' && item.text) || (item.type==='link' && item.url)));
+  }
+  const legacy = [];
+  if(t.hint) legacy.push({type:'step', text:t.hint});
+  if(t.link) legacy.push({type:'link', label:'參考連結', url:t.link});
+  return legacy;
+}
 function linkTag(t){
-  if(!t.link && !t.hint) return '';
-  const title = t.hint ? escapeHtml(t.hint) : '查看說明連結';
-  if(t.link){
-    return `<a class="wiz-link" href="${escapeHtml(t.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${title}">${icon('lightbulb')}</a>`;
+  const guidance = guidanceFor(t);
+  if(!guidance.length) return '';
+  const firstStep = guidance.find(item=>item.type==='step');
+  const firstLink = guidance.find(item=>item.type==='link');
+  const title = firstStep ? escapeHtml(firstStep.text) : '查看操作提示';
+  if(firstLink){
+    return `<a class="wiz-link" href="${escapeHtml(firstLink.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${title}">${icon('lightbulb')}</a>`;
   }
   return `<span class="wiz-link" title="${title}">${icon('lightbulb')}</span>`;
 }
@@ -614,15 +626,18 @@ function renderActionHints(){
   const box = document.getElementById('actionHints');
   const relevant = composeList
     .map(c=>templates.find(t=>t.id===c.tplId))
-    .filter(t=> t && (t.hint || t.link));
+    .filter(t=> t && guidanceFor(t).length);
   if(!relevant.length){ box.style.display='none'; box.innerHTML=''; return; }
   box.style.display='block';
-  box.innerHTML = `<p class="filter-label" style="margin-bottom:8px;">${icon('lightbulb')} 建議動作</p>` + relevant.map(t=>`
-    <div class="hint-card">
-      <p class="hint-title">${escapeHtml(t.title)}</p>
-      ${t.hint ? `<p class="hint-text">${escapeHtml(t.hint)}</p>` : ''}
-      ${t.link ? `<a class="hint-link" href="${escapeHtml(t.link)}" target="_blank" rel="noopener">${icon('link','style="width:12px;height:12px"')} ${escapeHtml(t.link)}</a>` : ''}
-    </div>`).join('');
+  box.innerHTML = `<p class="filter-label" style="margin-bottom:8px;">${icon('lightbulb')} 操作提示</p>` + relevant.map(t=>{
+    const actions = guidanceFor(t).map((item, i)=>{
+      if(item.type==='link'){
+        return `<a class="btn btn-ghost btn-sm" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${icon('link','style="width:12px;height:12px"')} ${escapeHtml(item.label||'參考連結')}</a>`;
+      }
+      return `<span class="btn btn-ghost btn-sm" style="cursor:default;">${i+1}. ${escapeHtml(item.text)}</span>`;
+    }).join('');
+    return `<div class="hint-card"><p class="hint-title">${escapeHtml(t.title)}</p><div style="display:flex;flex-wrap:wrap;gap:6px;">${actions}</div></div>`;
+  }).join('');
 }
 
 function wizButtonsHtml(list){
@@ -1038,13 +1053,13 @@ function openModal(id=null){
           <p class="field-hint">加入回覆時可以在這些版本之間指定或切換。</p>
         </div>
         <div class="field">
-          <label>建議動作提示(選填)</label>
-          <input type="text" id="mHint" value="${escapeHtml(t.hint||'')}" placeholder="例如:退貨申請入口在訂單頁面→申請退貨/退款">
-          <p class="field-hint">選這則話術加入回覆時,這段提示會顯示在左側「💡 建議動作」區塊,提醒你或客人該去哪裡操作。</p>
-        </div>
-        <div class="field">
-          <label>參考連結(選填)</label>
-          <input type="text" id="mLink" value="${escapeHtml(t.link||'')}" placeholder="說明中心文章或功能頁的網址">
+          <label>操作提示（選填）</label>
+          <div id="mGuidanceList" style="display:flex;flex-direction:column;gap:8px;"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+            <button type="button" class="btn btn-ghost btn-sm" id="mAddStep">${icon('plus',' style="width:12px;height:12px"')} 新增步驟</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="mAddLink">${icon('link',' style="width:12px;height:12px"')} 新增參考連結</button>
+          </div>
+          <p class="field-hint">步驟會依序顯示成提示按鍵；參考連結可直接開啟需要查詢的網站。</p>
         </div>
       </div>
       <div class="modal-foot">
@@ -1098,6 +1113,39 @@ function openModal(id=null){
     renderVariantList();
   };
 
+  let guidanceDrafts = guidanceFor(t).map(item=>({...item}));
+  function readGuidanceDrafts(){
+    overlay.querySelectorAll('.mGuidanceText').forEach(inp=>{ guidanceDrafts[Number(inp.dataset.idx)].text = inp.value; });
+    overlay.querySelectorAll('.mGuidanceLabel').forEach(inp=>{ guidanceDrafts[Number(inp.dataset.idx)].label = inp.value; });
+    overlay.querySelectorAll('.mGuidanceUrl').forEach(inp=>{ guidanceDrafts[Number(inp.dataset.idx)].url = inp.value; });
+  }
+  function renderGuidanceList(){
+    const wrap = overlay.querySelector('#mGuidanceList');
+    if(!guidanceDrafts.length){ wrap.innerHTML='<span class="field-hint">尚未新增提示步驟或參考連結</span>'; return; }
+    wrap.innerHTML = guidanceDrafts.map((item,i)=>{
+      if(item.type==='link'){
+        return `<div style="display:flex;gap:6px;align-items:flex-start;"><div style="flex:1;display:flex;flex-direction:column;gap:6px;"><input class="mGuidanceLabel" data-idx="${i}" value="${escapeHtml(item.label||'參考連結')}" placeholder="連結按鍵名稱"><input class="mGuidanceUrl" data-idx="${i}" value="${escapeHtml(item.url||'')}" placeholder="https://..."></div><button type="button" class="icon-btn" data-remove-guidance="${i}" title="刪除">${icon('trash')}</button></div>`;
+      }
+      return `<div style="display:flex;gap:6px;align-items:flex-start;"><input class="mGuidanceText" data-idx="${i}" value="${escapeHtml(item.text||'')}" placeholder="例如：開啟後台訂單頁面查詢" style="flex:1;"><button type="button" class="icon-btn" data-remove-guidance="${i}" title="刪除">${icon('trash')}</button></div>`;
+    }).join('');
+    wrap.querySelectorAll('[data-remove-guidance]').forEach(btn=>btn.onclick=()=>{
+      readGuidanceDrafts();
+      guidanceDrafts.splice(Number(btn.dataset.removeGuidance),1);
+      renderGuidanceList();
+    });
+  }
+  renderGuidanceList();
+  overlay.querySelector('#mAddStep').onclick = ()=>{
+    readGuidanceDrafts();
+    guidanceDrafts.push({type:'step',text:''});
+    renderGuidanceList();
+  };
+  overlay.querySelector('#mAddLink').onclick = ()=>{
+    readGuidanceDrafts();
+    guidanceDrafts.push({type:'link',label:'參考連結',url:''});
+    renderGuidanceList();
+  };
+
   overlay.querySelector('#mClose').onclick = ()=>overlay.remove();
   overlay.querySelector('#mCancel').onclick = ()=>overlay.remove();
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
@@ -1116,15 +1164,23 @@ function openModal(id=null){
     const keptVariants = variantDrafts.filter(v=>v.content.trim());
     const variants = keptVariants.map(v=>v.content.trim());
     const variantLabels = keptVariants.map((v,i)=>v.label.trim() || `版本 ${i+2}`);
-    const hint = overlay.querySelector('#mHint').value.trim() || undefined;
-    const link = overlay.querySelector('#mLink').value.trim() || undefined;
+    readGuidanceDrafts();
+    const guidance = guidanceDrafts.filter(item=>
+      item.type==='link' ? String(item.url||'').trim() : String(item.text||'').trim()
+    ).map(item=>item.type==='link'
+      ? {type:'link', label:String(item.label||'參考連結').trim() || '參考連結', url:String(item.url).trim()}
+      : {type:'step', text:String(item.text).trim()}
+    );
+    // 同時寫回舊欄位，讓舊備份與舊資料仍能正常顯示。
+    const hint = (guidance.find(item=>item.type==='step')||{}).text || undefined;
+    const link = (guidance.find(item=>item.type==='link')||{}).url || undefined;
     
     if(!title || !content){ showToast('請填寫標題與內容', true); return; }
     if(id){
       const idx = templates.findIndex(x=>x.id===id);
-      templates[idx] = {...templates[idx], stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels, appendWait, hint, link};
+      templates[idx] = {...templates[idx], stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidance, appendWait, hint, link};
     }else{
-      templates.unshift({id:'u'+Date.now(), stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels, appendWait, hint, link});
+      templates.unshift({id:'u'+Date.now(), stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidance, appendWait, hint, link});
     }
     await saveTemplates(templates);
     overlay.remove();
