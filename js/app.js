@@ -88,10 +88,12 @@ let varsValues = {};
 let customVars = ['訂單編號']; 
 let activeStage = 'all';
 let activeCategory = 'all';
+let activeSubcategory = 'all';
 let searchTerm = '';
 let editingId = null;
 
 let wizActiveCat = null;
+let wizActiveSubcategory = null;
 let wizSaleType = 'post';
 let sidebarMode = 'wizard';
 const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
@@ -172,7 +174,8 @@ function updateSaveBadge(){
 
 const IMPORT_HEADER_ALIASES = {
   stage:['階段','stage','對話階段'],
-  category:['類型','分類','問題類型','category'],
+  category:['大類型','類型','分類','問題類型','category'],
+  subcategory:['小類型','小分類','子分類','subcategory'],
   saletype:['售前售後','售前/售後','情境','saletype'],
   title:['標題','title','名稱'],
   content:['內容','回覆','回覆內容','第一版','預設回覆','content'],
@@ -231,6 +234,7 @@ function importFromRows(rows){
   const col = {
     stage: findCol(keys, IMPORT_HEADER_ALIASES.stage),
     category: findCol(keys, IMPORT_HEADER_ALIASES.category),
+    subcategory: findCol(keys, IMPORT_HEADER_ALIASES.subcategory),
     saletype: findCol(keys, IMPORT_HEADER_ALIASES.saletype),
     title: findCol(keys, IMPORT_HEADER_ALIASES.title),
     content: findCol(keys, IMPORT_HEADER_ALIASES.content),
@@ -252,10 +256,12 @@ function importFromRows(rows){
     if(!title || !content){ skipped++; return; }
     const stage = (col.stage ? stageFromText(r[col.stage]) : null) || 'body';
     let category = null;
+    let subcategory = null;
     if(stage==='body'){
       const catText = col.category ? String(r[col.category] ?? '').trim() : '';
       const resolved = resolveCategory(catText, workingCats) || workingCats.find(c=>c.label==='其他') || workingCats[0];
       category = resolved ? resolved.id : null;
+      subcategory = col.subcategory ? String(r[col.subcategory] ?? '').trim() || null : null;
     }
     let saleType = null;
     if(stage==='open' || stage==='close' || stage==='body'){
@@ -288,7 +294,7 @@ function importFromRows(rows){
     
     valid.push({
       id:'x'+Date.now()+'_'+i+Math.random().toString(36).slice(2,5), 
-      stage, category, saleType, title, content, variants, variantLabels,
+      stage, category, subcategory, saleType, title, content, variants, variantLabels,
       appendWait: appendWait || undefined,
       hint: hint || undefined, link: link || undefined
     });
@@ -347,7 +353,7 @@ function openImportConfirmModal(result, filename){
 
 function templateFingerprint(t){
   return JSON.stringify([
-    t.stage || '', t.category || '', t.saleType || '', t.title || '', t.content || '',
+    t.stage || '', t.category || '', t.subcategory || '', t.saleType || '', t.title || '', t.content || '',
     Array.isArray(t.variants) ? t.variants : [], Array.isArray(t.variantLabels) ? t.variantLabels : [],
     !!t.appendWait, t.hint || '', t.link || ''
   ]);
@@ -468,7 +474,8 @@ function exportCurrentTemplates(){
     const row = {
       '階段': STAGE_LABEL_SHORT[t.stage] || t.stage,
       '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
-      '類型': t.category ? catLabel(t.category) : '',
+      '大類型': t.category ? catLabel(t.category) : '',
+      '小類型': t.subcategory || '',
       '標題': t.title,
       '回覆內容': t.content,
       '附帶查詢中': t.appendWait ? '是' : '否'
@@ -643,7 +650,11 @@ function renderWizard(){
     `<button type="button" class="wiz-chip ${wizActiveCat===c.id?'active':''}" data-cat="${c.id}"><span>${c.emoji}</span> ${escapeHtml(c.label)}</button>`
   ).join('') + `<button type="button" class="wiz-chip" id="btnManageCats">${icon('settings')} 管理類型</button>`;
   catWrap.querySelectorAll('[data-cat]').forEach(b=>{
-    b.onclick = ()=>{ wizActiveCat = (wizActiveCat===b.dataset.cat) ? null : b.dataset.cat; renderWizardBodySub(); };
+    b.onclick = ()=>{
+      wizActiveCat = (wizActiveCat===b.dataset.cat) ? null : b.dataset.cat;
+      wizActiveSubcategory = null;
+      renderWizardBodySub();
+    };
   });
   const manageBtn = document.getElementById('btnManageCats');
   if(manageBtn) manageBtn.onclick = openCategoryModal;
@@ -660,17 +671,50 @@ function renderWizard(){
   attachWizEvents(wizClose);
 }
 function renderWizardBodySub(){
-  const subWrap = document.getElementById('wizBodySub');
-  const subLabel = document.getElementById('wizBodySubLabel');
-  if(!wizActiveCat){ subWrap.innerHTML=''; subLabel.style.display='none'; return; }
-  subLabel.style.display='block';
+  const subcategoryWrap = document.getElementById('wizSubcategory');
+  const subcategoryLabel = document.getElementById('wizSubcategoryLabel');
+  const responseWrap = document.getElementById('wizBodySub');
+  const responseLabel = document.getElementById('wizBodySubLabel');
+  if(!wizActiveCat){
+    subcategoryWrap.innerHTML='';
+    responseWrap.innerHTML='';
+    subcategoryLabel.style.display='none';
+    responseLabel.style.display='none';
+    return;
+  }
+  const subcategories = [...new Set(templates
+    .filter(t=>t.stage==='body' && t.category===wizActiveCat && t.subcategory)
+    .map(t=>t.subcategory))];
+  if(subcategories.length){
+    subcategoryLabel.style.display='block';
+    subcategoryWrap.innerHTML = subcategories.map(s=>
+      `<button type="button" class="wiz-chip ${wizActiveSubcategory===s?'active':''}" data-subcategory="${escapeHtml(s)}">${escapeHtml(s)}</button>`
+    ).join('');
+    subcategoryWrap.querySelectorAll('[data-subcategory]').forEach(btn=>{
+      btn.onclick = ()=>{
+        wizActiveSubcategory = btn.dataset.subcategory;
+        renderWizardBodySub();
+      };
+    });
+    if(!wizActiveSubcategory){
+      responseWrap.innerHTML='';
+      responseLabel.style.display='none';
+      return;
+    }
+  }else{
+    subcategoryWrap.innerHTML='';
+    subcategoryLabel.style.display='none';
+    wizActiveSubcategory = null;
+  }
+  responseLabel.style.display='block';
   const list = templates.filter(t=>{
     if(t.stage!=='body' || t.category!==wizActiveCat) return false;
+    if(subcategories.length && t.subcategory!==wizActiveSubcategory) return false;
     const st = t.saleType || 'both';
     return st==='both' || st===wizSaleType;
   });
-  subWrap.innerHTML = wizButtonsHtml(list);
-  attachWizEvents(subWrap);
+  responseWrap.innerHTML = wizButtonsHtml(list);
+  attachWizEvents(responseWrap);
 }
 
 function renderStageChips(){
@@ -682,9 +726,27 @@ function renderStageChips(){
     return `<button class="chip ${cls} ${activeStage===s?'active':''}" data-stage="${s}">${label}</button>`;
   }).join('');
   wrap.querySelectorAll('.chip').forEach(btn=>{
-    btn.onclick = ()=>{ activeStage = btn.dataset.stage; activeCategory='all'; renderAll(); };
+    btn.onclick = ()=>{ activeStage = btn.dataset.stage; activeCategory='all'; activeSubcategory='all'; renderAll(); };
   });
   document.getElementById('categoryWrap').style.display = (activeStage==='body' || activeStage==='all') ? 'block' : 'none';
+}
+function availableSubcategories(categoryId){
+  return [...new Set(templates
+    .filter(t=>t.stage==='body' && t.category===categoryId && t.subcategory)
+    .map(t=>t.subcategory))];
+}
+function renderSubcategoryChips(){
+  const wrap = document.getElementById('subcategoryChips');
+  const container = document.getElementById('subcategoryWrap');
+  const subs = activeCategory==='all' ? [] : availableSubcategories(activeCategory);
+  container.style.display = subs.length ? 'block' : 'none';
+  if(!subs.length){ activeSubcategory='all'; wrap.innerHTML=''; return; }
+  wrap.innerHTML = ['all', ...subs].map(s=>
+    `<button class="chip ${activeSubcategory===s?'active':''}" data-subcategory="${escapeHtml(s)}">${s==='all'?'全部小類型':escapeHtml(s)}</button>`
+  ).join('');
+  wrap.querySelectorAll('[data-subcategory]').forEach(btn=>{
+    btn.onclick = ()=>{ activeSubcategory=btn.dataset.subcategory; renderList(); };
+  });
 }
 function renderCategoryChips(){
   const cats = ['all', ...categories.map(c=>c.id)];
@@ -694,7 +756,7 @@ function renderCategoryChips(){
     return `<button class="chip ${activeCategory===c?'active':''}" data-cat="${c}">${label}</button>`;
   }).join('') + `<button class="chip" id="btnManageCats2">${icon('settings')} 管理</button>`;
   wrap.querySelectorAll('[data-cat]').forEach(btn=>{
-    btn.onclick = ()=>{ activeCategory = btn.dataset.cat; renderList(); };
+    btn.onclick = ()=>{ activeCategory = btn.dataset.cat; activeSubcategory='all'; renderSubcategoryChips(); renderList(); };
   });
   const manageBtn2 = document.getElementById('btnManageCats2');
   if(manageBtn2) manageBtn2.onclick = openCategoryModal;
@@ -704,6 +766,7 @@ function filteredTemplates(){
   return templates.filter(t=>{
     if(activeStage!=='all' && t.stage!==activeStage) return false;
     if(activeStage!=='wait' && activeStage!=='open' && activeStage!=='close' && activeCategory!=='all' && t.category!==activeCategory) return false;
+    if(activeSubcategory!=='all' && t.subcategory!==activeSubcategory) return false;
     if(searchTerm){
       const hay = (t.title+' '+t.content+' '+(t.variants||[]).join(' ')).toLowerCase();
       if(!hay.includes(searchTerm.toLowerCase())) return false;
@@ -721,6 +784,7 @@ function renderList(){
   wrap.innerHTML = list.map(t=>{
     const badges = [`<span class="badge badge-${t.stage}">${STAGE_LABEL_SHORT[t.stage]}</span>`];
     if(t.category) badges.push(`<span class="badge badge-cat">${catLabel(t.category)}</span>`);
+    if(t.subcategory) badges.push(`<span class="badge badge-cat">${escapeHtml(t.subcategory)}</span>`);
     if(t.appendWait) badges.push(`<span class="badge badge-appwait">附帶查詢中</span>`);
     const variantsCount = (t.variants || []).length + 1;
     if(variantsCount > 1) badges.push(`<span class="badge badge-cat">🔀 ${variantsCount} 個版本</span>`);
@@ -874,7 +938,7 @@ function renderCompose(){
       <div class="bubble-col">
         <div class="bubble-meta">
           <span class="bubble-name">小幫手</span>
-          <span class="bubble-stage-tag">${STAGE_LABEL_SHORT[t.stage]}${t.category? ' · '+catLabel(t.category):''}${variants.length>1? ` · 版本 ${vi+1}/${variants.length}`:''}</span>
+          <span class="bubble-stage-tag">${STAGE_LABEL_SHORT[t.stage]}${t.category? ' · '+catLabel(t.category):''}${t.subcategory? ' · '+t.subcategory:''}${variants.length>1? ` · 版本 ${vi+1}/${variants.length}`:''}</span>
         </div>
         <div class="bubble-box" data-content>${fillHtml(instanceText(t, vi))}</div>
         <div class="bubble-toolbar">
@@ -917,13 +981,13 @@ function renderBubblesOnly(){
     row.querySelector('[data-content]').innerHTML = fillHtml(instanceText(t, c.variantIndex||0));
     const variants = allVariants(t);
     const tag = row.querySelector('.bubble-stage-tag');
-    if(tag) tag.textContent = `${STAGE_LABEL_SHORT[t.stage]}${t.category? ' · '+catLabel(t.category):''}${variants.length>1? ` · 版本 ${(c.variantIndex||0)+1}/${variants.length}`:''}`;
+    if(tag) tag.textContent = `${STAGE_LABEL_SHORT[t.stage]}${t.category? ' · '+catLabel(t.category):''}${t.subcategory? ' · '+t.subcategory:''}${variants.length>1? ` · 版本 ${(c.variantIndex||0)+1}/${variants.length}`:''}`;
   });
 }
 
 function openModal(id=null){
   editingId = id;
-  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,saleType:'both',title:'',content:'',variants:[], appendWait:false};
+  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,subcategory:'',saleType:'both',title:'',content:'',variants:[], appendWait:false};
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -945,6 +1009,10 @@ function openModal(id=null){
             <select id="mCategory">
               ${categories.map(c=>`<option value="${c.id}" ${t.category===c.id?'selected':''}>${escapeHtml(c.label)}</option>`).join('')}
             </select>
+          </div>
+          <div class="field" id="mSubcategoryWrap" style="display:${t.stage==='body'?'block':'none'}">
+            <label>小類型</label>
+            <input type="text" id="mSubcategory" value="${escapeHtml(t.subcategory||'')}" placeholder="例如：商品資訊、配送進度">
           </div>
           <div class="field" id="mSaleWrap" style="display:${(t.stage==='open'||t.stage==='close'||t.stage==='body')?'block':'none'}">
             <label>售前/售後</label>
@@ -995,10 +1063,12 @@ function openModal(id=null){
 
   const stageSel = overlay.querySelector('#mStage');
   const catWrap = overlay.querySelector('#mCatWrap');
+  const subcategoryWrap = overlay.querySelector('#mSubcategoryWrap');
   const saleWrap = overlay.querySelector('#mSaleWrap');
   const waitWrap = overlay.querySelector('#mAppendWaitWrap');
   stageSel.onchange = ()=>{
     catWrap.style.display = stageSel.value==='body' ? 'block':'none';
+    subcategoryWrap.style.display = stageSel.value==='body' ? 'block':'none';
     saleWrap.style.display = (stageSel.value==='open'||stageSel.value==='close'||stageSel.value==='body') ? 'block':'none';
     waitWrap.style.display = stageSel.value==='body' ? 'block':'none';
   };
@@ -1044,6 +1114,7 @@ function openModal(id=null){
   overlay.querySelector('#mSave').onclick = async ()=>{
     const stage = overlay.querySelector('#mStage').value;
     const category = stage==='body' ? overlay.querySelector('#mCategory').value : null;
+    const subcategory = stage==='body' ? overlay.querySelector('#mSubcategory').value.trim() || null : null;
     const saleType = (stage==='open'||stage==='close'||stage==='body') ? overlay.querySelector('#mSaleType').value : null;
     const appendWait = stage==='body' ? overlay.querySelector('#mAppendWait').checked : false;
     const title = overlay.querySelector('#mTitle').value.trim();
@@ -1058,9 +1129,9 @@ function openModal(id=null){
     if(!title || !content){ showToast('請填寫標題與內容', true); return; }
     if(id){
       const idx = templates.findIndex(x=>x.id===id);
-      templates[idx] = {...templates[idx], stage, category, saleType, title, content, variants, variantLabels, appendWait, hint, link};
+      templates[idx] = {...templates[idx], stage, category, subcategory, saleType, title, content, variants, variantLabels, appendWait, hint, link};
     }else{
-      templates.unshift({id:'u'+Date.now(), stage, category, saleType, title, content, variants, variantLabels, appendWait, hint, link});
+      templates.unshift({id:'u'+Date.now(), stage, category, subcategory, saleType, title, content, variants, variantLabels, appendWait, hint, link});
     }
     await saveTemplates(templates);
     overlay.remove();
@@ -1247,6 +1318,7 @@ function deleteTemplate(id){
 function renderAll(){
   renderStageChips();
   renderCategoryChips();
+  renderSubcategoryChips();
   renderList();
   renderWizard();
   document.getElementById('statCount').textContent = templates.length;
