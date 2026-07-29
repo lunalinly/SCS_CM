@@ -145,20 +145,61 @@ async function saveTemplates(list){
   catch(e){ console.error('儲存失敗', e); showToast('儲存失敗,請稍後再試', true); }
 }
 
+function makeCustomVar(name, kind='text'){
+  return {id:'cv_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), name, kind, baseId:'', offsetDays:0};
+}
+function normalizeCustomVars(list){
+  return (Array.isArray(list) ? list : []).map((item, index)=>{
+    if(typeof item==='string') return {id:'legacy_'+index+'_'+encodeURIComponent(item), name:item, kind:'text', baseId:'', offsetDays:0};
+    return {
+      id:item.id || 'cv_'+index+'_'+Math.random().toString(36).slice(2,6),
+      name:String(item.name || '').trim(),
+      kind:item.kind==='date' ? 'date' : 'text',
+      baseId:item.baseId || '',
+      offsetDays:Number(item.offsetDays) || 0
+    };
+  }).filter(item=>item.name);
+}
 function loadCustomVars(){
   try{
     const res = localStorage.getItem(CUSTOM_VARS_KEY) || localStorage.getItem('custom_vars_v2');
-    if(res) {
-      const parsed = JSON.parse(res);
-      if(Array.isArray(parsed)) return parsed;
-    }
+    if(res) return normalizeCustomVars(JSON.parse(res));
   }catch(e){}
-  return ['訂單編號'];
+  return [makeCustomVar('訂單編號')];
 }
-
 function saveCustomVars(list){
-  customVars = list;
-  try{ localStorage.setItem(CUSTOM_VARS_KEY, JSON.stringify(list)); }catch(e){}
+  customVars = normalizeCustomVars(list);
+  try{ localStorage.setItem(CUSTOM_VARS_KEY, JSON.stringify(customVars)); }catch(e){}
+}
+function customVarByName(name){ return customVars.find(v=>v.name===name); }
+function addDaysToDate(dateValue, offset){
+  if(!dateValue) return '';
+  const date = new Date(dateValue+'T00:00:00');
+  if(Number.isNaN(date.getTime())) return '';
+  date.setDate(date.getDate()+Number(offset||0));
+  return [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-');
+}
+function resolvedVarValue(name, seen=new Set()){
+  const def = customVarByName(name);
+  if(!def) return varsValues[name] || '';
+  if(seen.has(def.id)) return '';
+  if(def.kind==='date' && def.baseId){
+    const base = customVars.find(v=>v.id===def.baseId);
+    return base ? addDaysToDate(resolvedVarValue(base.name, new Set([...seen, def.id])), def.offsetDays) : '';
+  }
+  return varsValues[name] || '';
+}
+function replaceVariableName(oldName, newName){
+  if(!oldName || !newName || oldName===newName) return;
+  const replaceText = text=>String(text||'').split('{'+oldName+'}').join('{'+newName+'}');
+  templates.forEach(t=>{
+    t.content = replaceText(t.content);
+    t.variants = (t.variants||[]).map(replaceText);
+  });
+  if(varsValues[oldName]!==undefined){
+    varsValues[newName] = varsValues[oldName];
+    delete varsValues[oldName];
+  }
 }
 
 function loadEditorCode(){
@@ -610,13 +651,13 @@ function extractVars(text){
   return out;
 }
 function fillPlain(text){
-  return text.replace(/\{([^{}]+)\}/g, (m,p1) => (varsValues[p1] && varsValues[p1].trim()) ? varsValues[p1] : m);
+  return text.replace(/\{([^{}]+)\}/g, (m,p1) => (resolvedVarValue(p1) && String(resolvedVarValue(p1)).trim()) ? resolvedVarValue(p1) : m);
 }
 function fillHtml(text){
   const escaped = escapeHtml(text);
   return escaped.replace(/\{([^{}]+)\}/g, (m,p1) => {
-    const v = varsValues[p1];
-    return (v && v.trim()) ? escapeHtml(v) : `<mark>${escapeHtml(m)}</mark>`;
+    const v = resolvedVarValue(p1);
+    return (v && String(v).trim()) ? escapeHtml(v) : `<mark>${escapeHtml(m)}</mark>`;
   });
 }
 function allVariants(t){
@@ -697,7 +738,7 @@ function renderActionHints(){
       }
       return `<span class="btn btn-ghost btn-sm" style="cursor:default;">${i+1}. ${escapeHtml(item.text)}</span>`;
     }).join('');
-    return `<div class="hint-card"><p class="hint-title">${escapeHtml(t.title)}</p>${t.guidanceText ? `<p class="hint-text">${escapeHtml(t.guidanceText)}</p>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;">${actions}</div></div>`;
+    return `<div class="hint-card"><p class="hint-title">${escapeHtml(t.title)}</p>${t.guidanceText ? `<p class="hint-text" style="white-space:pre-wrap;">${escapeHtml(t.guidanceText)}</p>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;">${actions}</div></div>`;
   }).join('');
 }
 
@@ -969,19 +1010,23 @@ function currentVars(){
 }
 
 function renderVarBar(){
-  const autoVars = currentVars();
-  const allVars = [...new Set([...customVars, ...autoVars])];
+  const autoVars = currentVars().filter(name=>!customVarByName(name));
+  const definitions = [...customVars, ...autoVars.map(name=>({id:'auto_'+name, name, kind:'text', baseId:'', offsetDays:0, auto:true}))];
   const bar = document.getElementById('varBar');
-  
-  if(!allVars.length){ bar.classList.add('is-empty'); bar.innerHTML=''; return; }
+
+  if(!definitions.length){ bar.classList.add('is-empty'); bar.innerHTML=''; return; }
   bar.classList.remove('is-empty');
-  bar.innerHTML = `<span class="var-bar-label">填入變數</span>` + allVars.map(v=>`
-    <div class="var-field">
-      <label>${escapeHtml(v)}</label>
-      <input type="text" data-var="${escapeHtml(v)}" value="${escapeHtml(varsValues[v]||'')}" placeholder="輸入內容">
-    </div>`).join('');
-    
+  bar.innerHTML = `<span class="var-bar-label">填入變數</span>` + definitions.map(def=>{
+    const derived = def.kind==='date' && def.baseId;
+    const value = resolvedVarValue(def.name);
+    return `<div class="var-field">
+      <label>${escapeHtml(def.name)}${def.kind==='date'?'（日期）':''}${derived?'（自動計算）':''}</label>
+      <input type="${def.kind==='date'?'date':'text'}" data-var="${escapeHtml(def.name)}" value="${escapeHtml(value)}" ${derived?'readonly':''} placeholder="${def.kind==='date'?'選擇日期':'輸入內容'}">
+    </div>`;
+  }).join('');
+
   bar.querySelectorAll('input').forEach(inp=>{
+    if(inp.readOnly) return;
     inp.oninput = ()=>{
       varsValues[inp.dataset.var] = inp.value;
       if(inp.dataset.var===EDITOR_CODE_VAR) saveEditorCode(inp.value);
@@ -991,7 +1036,7 @@ function renderVarBar(){
 }
 function syncVarInputs(){
   document.querySelectorAll('[data-var]').forEach(inp=>{
-    const v = varsValues[inp.dataset.var] || '';
+    const v = resolvedVarValue(inp.dataset.var);
     if(inp.value !== v) inp.value = v;
   });
   renderBubblesOnly();
@@ -1383,66 +1428,66 @@ function openVarsModal(){
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
-    <div class="modal" style="max-width:400px;">
+    <div class="modal" style="max-width:520px;">
       <div class="modal-head"><h3>管理常設參數</h3><button class="icon-btn" id="cvClose">${icon('x')}</button></div>
       <div class="modal-body">
-        <p class="field-hint" style="margin-top:0;">常設參數會固定出現在變數列的最前方，方便您快速輸入通用資訊（如訂單編號）。</p>
-        <div id="cvList" style="display:flex;flex-direction:column;gap:8px;"></div>
-        <div class="field-row" style="margin-top:6px;">
-          <div class="field">
-            <input type="text" id="cvNewLabel" placeholder="輸入新的參數名稱，如：小編代號">
-          </div>
-          <button class="btn btn-ghost" id="cvAdd" style="align-self:flex-end;">新增</button>
-        </div>
+        <p class="field-hint" style="margin-top:0;">可設定純文字或日期。日期參數可選擇基準日期並自動加減天數，例如「鑑賞期截止日＝取貨日期＋7 天」。</p>
+        <div id="cvList" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <button class="btn btn-ghost btn-sm" id="cvAdd">${icon('plus',' style="width:12px;height:12px"')} 新增參數</button>
       </div>
       <div class="modal-foot">
-        <button class="btn btn-primary" id="cvDone">完成</button>
+        <button class="btn btn-ghost" id="cvCancel">取消</button>
+        <button class="btn btn-primary" id="cvDone">儲存</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  let draft = customVars.map(v=>({...v}));
 
-  function renderCvList(){
-    const listEl = overlay.querySelector('#cvList');
-    if(!customVars.length) {
-      listEl.innerHTML = `<span style="font-size:12px;color:var(--ink-faint);">目前沒有常設參數</span>`;
-      return;
-    }
-    listEl.innerHTML = customVars.map((v, i)=>`
-      <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--surface-alt);">
-        <div style="flex:1;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;">
-          <span style="font-size:13px;font-weight:700;">${escapeHtml(v)}</span>
-          <span style="font-size:11px;color:var(--ink-faint);font-family:var(--font-mono);">加入話術：{${escapeHtml(v)}}</span>
-        </div>
-        <button type="button" class="icon-btn" data-del="${i}" title="刪除">${icon('trash')}</button>
-      </div>`).join('');
-    
-    listEl.querySelectorAll('[data-del]').forEach(btn=>{
-      btn.onclick = ()=> {
-        customVars.splice(Number(btn.dataset.del), 1);
-        saveCustomVars(customVars);
-        renderCvList();
-        renderVarBar();
-      };
-    });
+  function readDraft(){
+    overlay.querySelectorAll('[data-cv-name]').forEach(inp=>{ const v=draft.find(x=>x.id===inp.dataset.cvName); if(v) v.name=inp.value.trim(); });
+    overlay.querySelectorAll('[data-cv-kind]').forEach(sel=>{ const v=draft.find(x=>x.id===sel.dataset.cvKind); if(v) v.kind=sel.value; });
+    overlay.querySelectorAll('[data-cv-base]').forEach(sel=>{ const v=draft.find(x=>x.id===sel.dataset.cvBase); if(v) v.baseId=sel.value; });
+    overlay.querySelectorAll('[data-cv-offset]').forEach(inp=>{ const v=draft.find(x=>x.id===inp.dataset.cvOffset); if(v) v.offsetDays=Number(inp.value)||0; });
   }
-  renderCvList();
+  function renderDraft(){
+    const list = overlay.querySelector('#cvList');
+    if(!draft.length){ list.innerHTML='<span class="field-hint">尚未新增常設參數</span>'; return; }
+    list.innerHTML = draft.map(v=>{
+      const baseOptions = draft.filter(x=>x.id!==v.id && x.kind==='date').map(x=>`<option value="${x.id}" ${v.baseId===x.id?'selected':''}>${escapeHtml(x.name)}</option>`).join('');
+      return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;gap:8px;align-items:flex-start;">
+        <div style="flex:1;display:grid;grid-template-columns:1fr 110px;gap:8px;">
+          <input data-cv-name="${v.id}" value="${escapeHtml(v.name)}" placeholder="參數名稱">
+          <select data-cv-kind="${v.id}"><option value="text" ${v.kind==='text'?'selected':''}>純文字</option><option value="date" ${v.kind==='date'?'selected':''}>日期</option></select>
+          ${v.kind==='date'? `<select data-cv-base="${v.id}"><option value="">手動輸入日期</option>${baseOptions}</select><input type="number" data-cv-offset="${v.id}" value="${v.offsetDays||0}" placeholder="+ N 天" title="相對基準日期的天數"></input>` : ''}
+        </div>
+        <button type="button" class="icon-btn" data-cv-delete="${v.id}" title="刪除">${icon('trash')}</button>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-cv-kind]').forEach(sel=>sel.onchange=()=>{ readDraft(); renderDraft(); });
+    list.querySelectorAll('[data-cv-delete]').forEach(btn=>btn.onclick=()=>{ readDraft(); draft=draft.filter(v=>v.id!==btn.dataset.cvDelete); draft.forEach(v=>{if(v.baseId===btn.dataset.cvDelete)v.baseId='';}); renderDraft(); });
+  }
+  renderDraft();
 
-  overlay.querySelector('#cvAdd').onclick = ()=>{
-    const label = overlay.querySelector('#cvNewLabel').value.trim();
-    if(!label){ showToast('請輸入參數名稱', true); return; }
-    if(customVars.includes(label)){ showToast('已經有這個參數了', true); return; }
-    
-    customVars.push(label);
+  overlay.querySelector('#cvAdd').onclick=()=>{ readDraft(); draft.push(makeCustomVar('')); renderDraft(); };
+  const close=()=>overlay.remove();
+  overlay.querySelector('#cvClose').onclick=close;
+  overlay.querySelector('#cvCancel').onclick=close;
+  overlay.onclick=e=>{if(e.target===overlay)close();};
+  overlay.querySelector('#cvDone').onclick=async()=>{
+    readDraft();
+    draft=normalizeCustomVars(draft);
+    if(!draft.length){ showToast('至少保留一個常設參數', true); return; }
+    if(draft.some(v=>!v.name)){ showToast('請填寫所有參數名稱', true); return; }
+    if(new Set(draft.map(v=>v.name)).size!==draft.length){ showToast('參數名稱不可重複', true); return; }
+    customVars.forEach(oldVar=>{ const next=draft.find(v=>v.id===oldVar.id); if(next) replaceVariableName(oldVar.name,next.name); });
+    customVars=draft;
     saveCustomVars(customVars);
-    overlay.querySelector('#cvNewLabel').value = '';
-    renderCvList();
+    await saveTemplates(templates);
     renderVarBar();
-    showToast('已新增常設參數');
+    renderCompose();
+    close();
+    showToast('已儲存常設參數設定');
   };
-  
-  overlay.querySelector('#cvClose').onclick = ()=>{ overlay.remove(); };
-  overlay.querySelector('#cvDone').onclick = ()=>{ overlay.remove(); };
-  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
 }
 
 function deleteTemplate(id){
@@ -1468,8 +1513,8 @@ function renderAll(){
 
 async function init(){
   customVars = loadCustomVars();
-  if(!customVars.includes(EDITOR_CODE_VAR)){
-    customVars.push(EDITOR_CODE_VAR);
+  if(!customVars.some(v=>v.name===EDITOR_CODE_VAR)){
+    customVars.push(makeCustomVar(EDITOR_CODE_VAR));
     saveCustomVars(customVars);
   }
   varsValues[EDITOR_CODE_VAR] = loadEditorCode();
