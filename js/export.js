@@ -1,5 +1,5 @@
 import { state, STAGE_LABEL_SHORT } from './state.js';
-import { catLabel } from './app.js';
+import { catLabel, showToast } from './app.js';
 
 export function exportCurrentTemplates(){
   if(typeof XLSX==='undefined'){ showToast('匯出功能載入中,請稍後再試一次', true); return; }
