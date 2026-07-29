@@ -251,11 +251,16 @@ function importFromRows(rows){
     }
     
     let variants = [];
+    let variantLabels = [];
     variantCols.forEach(vc => {
       const vText = String(r[vc] ?? '').trim();
       if(vText) {
         const splitted = vText.split(/\n?===\n?/).map(v=>v.trim()).filter(Boolean);
-        variants.push(...splitted);
+        splitted.forEach((text, idx) => {
+          variants.push(text);
+          // Excel 欄位名稱就是按鍵的小標；同一欄多筆內容時再加序號。
+          variantLabels.push(splitted.length > 1 ? `${vc} ${idx+1}` : String(vc));
+        });
       }
     });
 
@@ -267,7 +272,7 @@ function importFromRows(rows){
     
     valid.push({
       id:'x'+Date.now()+'_'+i+Math.random().toString(36).slice(2,5), 
-      stage, category, saleType, title, content, variants, 
+      stage, category, saleType, title, content, variants, variantLabels,
       appendWait: appendWait || undefined,
       hint: hint || undefined, link: link || undefined
     });
@@ -327,7 +332,8 @@ function openImportConfirmModal(result, filename){
 function templateFingerprint(t){
   return JSON.stringify([
     t.stage || '', t.category || '', t.saleType || '', t.title || '', t.content || '',
-    Array.isArray(t.variants) ? t.variants : [], !!t.appendWait, t.hint || '', t.link || ''
+    Array.isArray(t.variants) ? t.variants : [], Array.isArray(t.variantLabels) ? t.variantLabels : [],
+    !!t.appendWait, t.hint || '', t.link || ''
   ]);
 }
 
@@ -452,7 +458,8 @@ function exportCurrentTemplates(){
       '附帶查詢中': t.appendWait ? '是' : '否'
     };
     for(let i=0; i<maxVariants; i++){
-      row[`回覆方式${i+2}`] = (t.variants && t.variants[i]) ? t.variants[i] : '';
+      const label = (t.variantLabels && t.variantLabels[i]) || `回覆方式${i+2}`;
+      row[label] = (t.variants && t.variants[i]) ? t.variants[i] : '';
     }
     row['提示'] = t.hint || '';
     row['參考連結'] = t.link || '';
@@ -528,6 +535,10 @@ function fillHtml(text){
 function allVariants(t){
   return [t.content, ...(t.variants||[])].filter(v=>v!=null);
 }
+function variantLabel(t, variantIndex){
+  if(variantIndex===0) return t.defaultVariantLabel || '預設回覆';
+  return (t.variantLabels||[])[variantIndex-1] || `版本 ${variantIndex+1}`;
+}
 function instanceText(t, variantIndex){
   const arr = allVariants(t);
   return arr[variantIndex] ?? arr[0] ?? '';
@@ -589,26 +600,17 @@ function wizButtonsHtml(list){
   if(!list.length) return `<span class="empty-note">這個分類還沒有話術,可以到「瀏覽全部話術」新增一則</span>`;
   return list.map(t=>{
     const isActive = SINGLE_STAGES.has(t.stage) && composeList.some(c=>c.tplId===t.id);
-    const variantsCount = (t.variants || []).length + 1;
-    let selHtml = '';
-    if (variantsCount > 1) {
-      const opts = Array.from({length: variantsCount}).map((_, i) => `<option value="${i}">版本 ${i+1}</option>`).join('');
-      selHtml = `<select class="wiz-variant-sel" title="選擇回覆版本">${opts}</select>`;
-    }
-    return `
-      <div class="wiz-btn-group">
-        <button type="button" class="wiz-btn ${isActive?'active':''}" data-tpl="${t.id}">${escapeHtml(t.title)}</button>
-        ${selHtml}
-      </div>`;
+    const variants = allVariants(t);
+    const buttons = variants.map((_, i)=>`
+      <button type="button" class="wiz-btn ${isActive && i===0?'active':''}" data-tpl="${t.id}" data-variant="${i}">
+        ${escapeHtml(variants.length===1 ? t.title : `${t.title}｜${variantLabel(t, i)}`)}
+      </button>`).join('');
+    return `<div class="wiz-btn-group">${buttons}</div>`;
   }).join('');
 }
 function attachWizEvents(container){
   container.querySelectorAll('[data-tpl]').forEach(b=> {
-    b.onclick = ()=> {
-      const sel = b.parentElement.querySelector('.wiz-variant-sel');
-      const vIdx = sel ? parseInt(sel.value) : 0;
-      insertTemplate(b.dataset.tpl, vIdx);
-    };
+    b.onclick = ()=> insertTemplate(b.dataset.tpl, parseInt(b.dataset.variant || '0'));
   });
 }
 function renderWizard(){
@@ -707,11 +709,9 @@ function renderList(){
     const variantsCount = (t.variants || []).length + 1;
     if(variantsCount > 1) badges.push(`<span class="badge badge-cat">🔀 ${variantsCount} 個版本</span>`);
     
-    let selHtml = '';
-    if(variantsCount > 1){
-      const opts = Array.from({length: variantsCount}).map((_, i) => `<option value="${i}">版本 ${i+1}</option>`).join('');
-      selHtml = `<select class="list-variant-sel">${opts}</select>`;
-    }
+    const insertButtons = Array.from({length:variantsCount}).map((_, i)=>
+      `<button class="btn btn-primary btn-sm" data-act="insert" data-variant="${i}">${icon('plus',' style="stroke:#fff;width:13px;height:13px"')} ${escapeHtml(variantsCount===1 ? '加入回覆' : variantLabel(t, i))}</button>`
+    ).join('');
 
     return `
     <div class="tpl-card" data-id="${t.id}">
@@ -725,18 +725,16 @@ function renderList(){
       <p class="tpl-title">${escapeHtml(t.title)} ${linkTag(t)}</p>
       <p class="tpl-preview">${escapeHtml(t.content)}</p>
       <div class="tpl-actions">
-        ${selHtml}
-        <button class="btn btn-primary btn-sm" data-act="insert">${icon('plus',' style="stroke:#fff;width:13px;height:13px"')} 加入回覆</button>
+        ${insertButtons}
       </div>
     </div>`;
   }).join('');
 
   wrap.querySelectorAll('.tpl-card').forEach(card=>{
     const id = card.dataset.id;
-    card.querySelector('[data-act=insert]').onclick = ()=> {
-      const sel = card.querySelector('.list-variant-sel');
-      insertTemplate(id, sel ? parseInt(sel.value) : 0);
-    };
+    card.querySelectorAll('[data-act=insert]').forEach(btn=>{
+      btn.onclick = ()=> insertTemplate(id, parseInt(btn.dataset.variant || '0'));
+    });
     card.querySelector('[data-act=edit]').onclick = ()=> openModal(id);
     card.querySelector('[data-act=del]').onclick = ()=> deleteTemplate(id);
   });
@@ -850,7 +848,7 @@ function renderCompose(){
     
     let variantSel = '';
     if(variants.length > 1){
-      const opts = variants.map((_, i) => `<option value="${i}" ${i===vi?'selected':''}>切換版本 ${i+1}/${variants.length}</option>`).join('');
+      const opts = variants.map((_, i) => `<option value="${i}" ${i===vi?'selected':''}>${escapeHtml(variantLabel(t, i))}</option>`).join('');
       variantSel = `<select data-act="change-variant" data-inst="${c.instId}">${opts}</select>`;
     }
     
@@ -989,18 +987,28 @@ function openModal(id=null){
     waitWrap.style.display = stageSel.value==='body' ? 'block':'none';
   };
 
-  let variantDrafts = (t.variants || []).slice();
+  let variantDrafts = (t.variants || []).map((content, i)=>({
+    label:(t.variantLabels || [])[i] || `版本 ${i+2}`,
+    content
+  }));
+  function readVariantDrafts(){
+    overlay.querySelectorAll('.mVariantInput').forEach(ta=>{ variantDrafts[Number(ta.dataset.idx)].content = ta.value; });
+    overlay.querySelectorAll('.mVariantLabel').forEach(inp=>{ variantDrafts[Number(inp.dataset.idx)].label = inp.value; });
+  }
   function renderVariantList(){
     const wrap = overlay.querySelector('#mVariantList');
     if(!variantDrafts.length){ wrap.innerHTML = ''; return; }
     wrap.innerHTML = variantDrafts.map((v,i)=>`
       <div style="display:flex;gap:6px;align-items:flex-start;">
-        <textarea class="mVariantInput" data-idx="${i}" placeholder="版本 ${i+2} 的內容" style="flex:1;min-height:70px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.6;outline:none;">${escapeHtml(v)}</textarea>
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+          <input class="mVariantLabel" data-idx="${i}" value="${escapeHtml(v.label)}" placeholder="按鍵名稱，例如：商品標題">
+          <textarea class="mVariantInput" data-idx="${i}" placeholder="此按鍵對應的回覆內容" style="min-height:70px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.6;outline:none;">${escapeHtml(v.content)}</textarea>
+        </div>
         <button type="button" class="icon-btn" data-rmv="${i}" title="刪除這個版本">${icon('trash')}</button>
       </div>`).join('');
     wrap.querySelectorAll('[data-rmv]').forEach(btn=>{
       btn.onclick = ()=>{
-        overlay.querySelectorAll('.mVariantInput').forEach(ta=>{ variantDrafts[Number(ta.dataset.idx)] = ta.value; });
+        readVariantDrafts();
         variantDrafts.splice(Number(btn.dataset.rmv), 1);
         renderVariantList();
       };
@@ -1008,8 +1016,8 @@ function openModal(id=null){
   }
   renderVariantList();
   overlay.querySelector('#mAddVariant').onclick = ()=>{
-    overlay.querySelectorAll('.mVariantInput').forEach(ta=>{ variantDrafts[Number(ta.dataset.idx)] = ta.value; });
-    variantDrafts.push('');
+    readVariantDrafts();
+    variantDrafts.push({label:`版本 ${variantDrafts.length+2}`, content:''});
     renderVariantList();
   };
 
@@ -1024,17 +1032,19 @@ function openModal(id=null){
     const appendWait = stage==='body' ? overlay.querySelector('#mAppendWait').checked : false;
     const title = overlay.querySelector('#mTitle').value.trim();
     const content = overlay.querySelector('#mContent').value.trim();
-    overlay.querySelectorAll('.mVariantInput').forEach(ta=>{ variantDrafts[Number(ta.dataset.idx)] = ta.value; });
-    const variants = variantDrafts.map(v=>v.trim()).filter(Boolean);
+    readVariantDrafts();
+    const keptVariants = variantDrafts.filter(v=>v.content.trim());
+    const variants = keptVariants.map(v=>v.content.trim());
+    const variantLabels = keptVariants.map((v,i)=>v.label.trim() || `版本 ${i+2}`);
     const hint = overlay.querySelector('#mHint').value.trim() || undefined;
     const link = overlay.querySelector('#mLink').value.trim() || undefined;
     
     if(!title || !content){ showToast('請填寫標題與內容', true); return; }
     if(id){
       const idx = templates.findIndex(x=>x.id===id);
-      templates[idx] = {...templates[idx], stage, category, saleType, title, content, variants, appendWait, hint, link};
+      templates[idx] = {...templates[idx], stage, category, saleType, title, content, variants, variantLabels, appendWait, hint, link};
     }else{
-      templates.unshift({id:'u'+Date.now(), stage, category, saleType, title, content, variants, appendWait, hint, link});
+      templates.unshift({id:'u'+Date.now(), stage, category, saleType, title, content, variants, variantLabels, appendWait, hint, link});
     }
     await saveTemplates(templates);
     overlay.remove();
