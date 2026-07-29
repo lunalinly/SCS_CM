@@ -45,7 +45,7 @@ function customConfirm(msg, onConfirm) {
 }
 
 const STAGE_LABEL = {open:'開頭問候', wait:'查詢中／需要時間', body:'中段回覆', close:'結尾／滿意度'};
-const STAGE_LABEL_SHORT = {open:'開頭', wait:'查詢中', body:'中段', close:'結尾'};
+export const STAGE_LABEL_SHORT = {open:'開頭', wait:'查詢中', body:'中段', close:'結尾'};
 
  
 
