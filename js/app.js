@@ -1019,8 +1019,23 @@ function currentVars(){
 }
 
 function renderVarBar(){
-  const autoVars = currentVars().filter(name=>!customVarByName(name));
-  const definitions = [...customVars, ...autoVars.map(name=>({id:'auto_'+name, name, kind:'text', baseId:'', offsetDays:0, auto:true}))];
+  const activeNames = new Set(currentVars());
+  const fixedNames = new Set(['訂單編號', EDITOR_CODE_VAR]);
+  // 日期衍生變數被使用時，基準日期也必須顯示，才能完成自動計算。
+  let changed = true;
+  while(changed){
+    changed = false;
+    customVars.forEach(def=>{
+      if(activeNames.has(def.name) && def.kind==='date' && def.baseId){
+        const base = customVars.find(v=>v.id===def.baseId);
+        if(base && !activeNames.has(base.name)){ activeNames.add(base.name); changed=true; }
+      }
+    });
+  }
+  const definitions = [
+    ...customVars.filter(def=>fixedNames.has(def.name) || activeNames.has(def.name)),
+    ...[...activeNames].filter(name=>!customVarByName(name)).map(name=>({id:'auto_'+name, name, kind:'text', baseId:'', offsetDays:0, auto:true}))
+  ];
   const bar = document.getElementById('varBar');
 
   if(!definitions.length){ bar.classList.add('is-empty'); bar.innerHTML=''; return; }
