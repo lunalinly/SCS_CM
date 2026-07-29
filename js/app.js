@@ -551,7 +551,7 @@ function exportCurrentTemplates(){
 
   let maxVariants = 0;
   templates.forEach(t=>{ if(t.variants && t.variants.length > maxVariants) maxVariants = t.variants.length; });
-  const saleTypeLabel = {pre:'售前', post:'售後', both:'皆可'};
+  const saleTypeLabel = {pre:'售前', post:'售後', both:'皆可使用'};
 
   const rows = templates.map(t=>{
     const guidance = guidanceFor(t);
@@ -602,7 +602,7 @@ function downloadBlankTemplate(){
     ['欄位', '用途／填寫方式'],
     ['階段', '開頭、中段、查詢中或結尾。'],
     ['大類型', '中段回覆使用，例如：物流、退換貨；其他階段可留白。'],
-    ['售前售後', '填售前、售後或皆可。'],
+    ['售前售後', '填售前、售後或皆可使用；皆可使用會同時出現在售前與售後組合精靈。'],
     ['標籤', '所有階段都可填；多個標籤用「、」或逗號分隔。'],
     ['標題', '網站中「選擇問題」顯示的名稱。'],
     ['預設按鍵名稱／回覆內容', '最下層「細項」的預設按鍵與對應內容。'],
@@ -835,7 +835,10 @@ function renderWizard(){
   document.getElementById('saleTypePre').classList.toggle('active', wizSaleType==='pre');
   document.getElementById('saleTypePost').classList.toggle('active', wizSaleType==='post');
 
-  const openList = templates.filter(t=>t.stage==='open' && (t.saleType||'post')===wizSaleType);
+  const openList = templates.filter(t=>{
+    const type = t.saleType || 'post';
+    return t.stage==='open' && (type===wizSaleType || type==='both');
+  });
   renderSimpleStage('open', openList, 'wizOpenTagFilters', 'wizOpenTagLabel', 'wizOpen', 'wizOpenDetails', 'wizOpenDetailLabel');
 
   const catWrap = document.getElementById('wizBodyCat');
@@ -857,7 +860,10 @@ function renderWizard(){
   const waitList = templates.filter(t=>t.stage==='wait');
   renderSimpleStage('wait', waitList, 'wizWaitTagFilters', 'wizWaitTagLabel', 'wizWait', 'wizWaitDetails', 'wizWaitDetailLabel');
 
-  const closeList = templates.filter(t=>t.stage==='close' && (t.saleType||'post')===wizSaleType);
+  const closeList = templates.filter(t=>{
+    const type = t.saleType || 'post';
+    return t.stage==='close' && (type===wizSaleType || type==='both');
+  });
   renderSimpleStage('close', closeList, 'wizCloseTagFilters', 'wizCloseTagLabel', 'wizClose', 'wizCloseDetails', 'wizCloseDetailLabel');
 }
 function renderWizardBodySub(){
@@ -1233,7 +1239,7 @@ function openModal(id=null){
             <select id="mSaleType">
               <option value="pre" ${t.saleType==='pre'?'selected':''}>售前諮詢</option>
               <option value="post" ${t.saleType==='post'?'selected':''}>售後處理</option>
-              <option value="both" ${(!t.saleType || t.saleType==='both')?'selected':''}>皆可適用</option>
+              <option value="both" ${(!t.saleType || t.saleType==='both')?'selected':''}>皆可使用</option>
             </select>
           </div>
         </div>
