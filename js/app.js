@@ -184,6 +184,7 @@ const IMPORT_HEADER_ALIASES = {
   defaultVariantLabel:['預設按鍵名稱','預設回覆名稱','defaultVariantLabel'],
   appendWait:['附帶查詢中','加上請稍等','附帶等待話術'],
   hint:['提示','建議動作','動作','hint'],
+  guidanceText:['提示文字','操作提示文字','guidanceText'],
   guidanceSteps:['操作步驟','提示步驟','guidanceSteps'],
   guidanceStepLinks:['操作步驟連結','步驟連結','guidanceStepLinks'],
   guidanceJson:['提示完整資料','guidanceJson'],
@@ -249,6 +250,7 @@ function importFromRows(rows){
     defaultVariantLabel: findCol(keys, IMPORT_HEADER_ALIASES.defaultVariantLabel),
     appendWait: findCol(keys, IMPORT_HEADER_ALIASES.appendWait),
     hint: findCol(keys, IMPORT_HEADER_ALIASES.hint),
+    guidanceText: findCol(keys, IMPORT_HEADER_ALIASES.guidanceText),
     guidanceSteps: findCol(keys, IMPORT_HEADER_ALIASES.guidanceSteps),
     guidanceStepLinks: findCol(keys, IMPORT_HEADER_ALIASES.guidanceStepLinks),
     guidanceJson: findCol(keys, IMPORT_HEADER_ALIASES.guidanceJson),
@@ -306,6 +308,7 @@ function importFromRows(rows){
     const appendWaitText = col.appendWait ? String(r[col.appendWait] ?? '').trim() : '';
     const appendWait = stage==='body' && /是|Y|True|1/i.test(appendWaitText);
     
+    const guidanceText = col.guidanceText ? String(r[col.guidanceText] ?? '').trim() : '';
     const stepSource = col.guidanceSteps ? String(r[col.guidanceSteps] ?? '').trim() : (col.hint ? String(r[col.hint] ?? '').trim() : '');
     const stepLinks = col.guidanceStepLinks ? String(r[col.guidanceStepLinks] ?? '').split(/\r?\n/).map(v=>v.trim()) : [];
     const linkSource = col.link ? String(r[col.link] ?? '').trim() : '';
@@ -331,6 +334,7 @@ function importFromRows(rows){
       id:'x'+Date.now()+'_'+i+Math.random().toString(36).slice(2,5), 
       stage, category, subcategory, tags, saleType, title, defaultVariantLabel, content, variants, variantLabels,
       appendWait: appendWait || undefined,
+      guidanceText: guidanceText || undefined,
       guidance: guidance.length ? guidance : undefined,
       hint: hint || undefined, link: link || undefined
     });
@@ -391,7 +395,7 @@ function templateFingerprint(t){
   return JSON.stringify([
     t.stage || '', t.category || '', t.subcategory || '', Array.isArray(t.tags) ? t.tags : [], t.saleType || '', t.title || '', t.defaultVariantLabel || '', t.content || '',
     Array.isArray(t.variants) ? t.variants : [], Array.isArray(t.variantLabels) ? t.variantLabels : [],
-    Array.isArray(t.guidance) ? t.guidance : [], !!t.appendWait, t.hint || '', t.link || ''
+    Array.isArray(t.guidance) ? t.guidance : [], t.guidanceText || '', !!t.appendWait, t.hint || '', t.link || ''
   ]);
 }
 
@@ -523,6 +527,7 @@ function exportCurrentTemplates(){
       '標題': t.title,
       '預設按鍵名稱': t.defaultVariantLabel || '預設回覆',
       '回覆內容': t.content,
+      '提示文字': t.guidanceText || '',
       '操作步驟': steps.map(item=>item.text).join('\n'),
       '操作步驟連結': steps.map(item=>item.url || '').join('\n'),
       '參考連結名稱': links.map(item=>item.label || '參考連結').join('\n'),
@@ -658,7 +663,7 @@ function guidanceFor(t){
 }
 function linkTag(t){
   const guidance = guidanceFor(t);
-  if(!guidance.length) return '';
+  if(!guidance.length && !t.guidanceText) return '';
   const firstStep = guidance.find(item=>item.type==='step');
   const firstLink = guidance.find(item=>item.type==='link');
   const title = firstStep ? escapeHtml(firstStep.text) : '查看操作提示';
@@ -671,7 +676,7 @@ function renderActionHints(){
   const box = document.getElementById('actionHints');
   const relevant = composeList
     .map(c=>templates.find(t=>t.id===c.tplId))
-    .filter(t=> t && guidanceFor(t).length);
+    .filter(t=> t && (guidanceFor(t).length || t.guidanceText));
   if(!relevant.length){ box.style.display='none'; box.innerHTML=''; return; }
   box.style.display='block';
   box.innerHTML = `<p class="filter-label" style="margin-bottom:8px;">${icon('lightbulb')} 操作提示</p>` + relevant.map(t=>{
@@ -684,7 +689,7 @@ function renderActionHints(){
       }
       return `<span class="btn btn-ghost btn-sm" style="cursor:default;">${i+1}. ${escapeHtml(item.text)}</span>`;
     }).join('');
-    return `<div class="hint-card"><p class="hint-title">${escapeHtml(t.title)}</p><div style="display:flex;flex-wrap:wrap;gap:6px;">${actions}</div></div>`;
+    return `<div class="hint-card"><p class="hint-title">${escapeHtml(t.title)}</p>${t.guidanceText ? `<p class="hint-text">${escapeHtml(t.guidanceText)}</p>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;">${actions}</div></div>`;
   }).join('');
 }
 
@@ -1126,6 +1131,8 @@ function openModal(id=null){
         </div>
         <div class="field">
           <label>操作提示（選填）</label>
+          <textarea id="mGuidanceIntro" placeholder="輸入要先顯示的純文字提示…">${escapeHtml(t.guidanceText||'')}</textarea>
+          <p class="field-hint">這段文字會顯示在步驟與連結按鍵前方。</p>
           <div id="mGuidanceList" style="display:flex;flex-direction:column;gap:8px;"></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
             <button type="button" class="btn btn-ghost btn-sm" id="mAddStep">${icon('plus',' style="width:12px;height:12px"')} 新增步驟</button>
@@ -1240,6 +1247,7 @@ function openModal(id=null){
     const keptVariants = variantDrafts.filter(v=>v.content.trim());
     const variants = keptVariants.map(v=>v.content.trim());
     const variantLabels = keptVariants.map((v,i)=>v.label.trim() || `版本 ${i+2}`);
+    const guidanceText = overlay.querySelector('#mGuidanceIntro').value.trim() || undefined;
     readGuidanceDrafts();
     const guidance = guidanceDrafts.filter(item=>
       item.type==='link' ? String(item.url||'').trim() : String(item.text||'').trim()
@@ -1254,9 +1262,9 @@ function openModal(id=null){
     if(!title || !content){ showToast('請填寫標題與內容', true); return; }
     if(id){
       const idx = templates.findIndex(x=>x.id===id);
-      templates[idx] = {...templates[idx], stage, category, subcategory, tags, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidance, appendWait, hint, link};
+      templates[idx] = {...templates[idx], stage, category, subcategory, tags, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidanceText, guidance, appendWait, hint, link};
     }else{
-      templates.unshift({id:'u'+Date.now(), stage, category, subcategory, tags, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidance, appendWait, hint, link});
+      templates.unshift({id:'u'+Date.now(), stage, category, subcategory, tags, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidanceText, guidance, appendWait, hint, link});
     }
     await saveTemplates(templates);
     overlay.remove();
