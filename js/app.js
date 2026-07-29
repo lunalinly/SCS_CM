@@ -96,6 +96,7 @@ let wizActiveCat = null;
 let wizActiveProblem = null;
 let wizActiveProblemTag = 'all';
 const wizStageProblems = {open:null, wait:null, close:null};
+const wizStageTags = {open:'all', wait:'all', close:'all'};
 let wizSaleType = 'post';
 let sidebarMode = 'wizard';
 const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
@@ -769,20 +770,35 @@ function attachWizEvents(container){
     b.onclick = ()=> insertTemplate(b.dataset.tpl, parseInt(b.dataset.variant || '0'));
   });
 }
-function renderSimpleStage(stage, list, problemId, detailId, detailLabelId){
+function renderSimpleStage(stage, list, tagId, tagLabelId, problemId, detailId, detailLabelId){
+  const tagWrap = document.getElementById(tagId);
+  const tagLabel = document.getElementById(tagLabelId);
   const problemWrap = document.getElementById(problemId);
   const detailWrap = document.getElementById(detailId);
   const detailLabel = document.getElementById(detailLabelId);
-  problemWrap.innerHTML = list.length
-    ? list.map(t=>`<button type="button" class="wiz-chip ${wizStageProblems[stage]===t.id?'active':''}" data-simple-stage="${stage}" data-problem="${t.id}">${escapeHtml(t.title)}</button>`).join('')
-    : '<span class="empty-note">尚未建立話術</span>';
+  const tags = [...new Set(list.flatMap(t=>Array.isArray(t.tags) ? t.tags : []))];
+  tagLabel.style.display = tags.length ? 'block' : 'none';
+  tagWrap.innerHTML = tags.length ? ['all', ...tags].map(tag=>
+    `<button type="button" class="wiz-chip ${wizStageTags[stage]===tag?'active':''}" data-stage-tag="${stage}" data-tag="${escapeHtml(tag)}">${tag==='all'?'全部':escapeHtml(tag)}</button>`
+  ).join('') : '';
+  tagWrap.querySelectorAll('[data-stage-tag]').forEach(btn=>{
+    btn.onclick=()=>{
+      wizStageTags[btn.dataset.stageTag]=btn.dataset.tag;
+      wizStageProblems[stage]=null;
+      renderSimpleStage(stage, list, tagId, tagLabelId, problemId, detailId, detailLabelId);
+    };
+  });
+  const filtered = list.filter(t=>wizStageTags[stage]==='all' || (t.tags||[]).includes(wizStageTags[stage]));
+  problemWrap.innerHTML = filtered.length
+    ? filtered.map(t=>`<button type="button" class="wiz-chip ${wizStageProblems[stage]===t.id?'active':''}" data-simple-stage="${stage}" data-problem="${t.id}">${escapeHtml(t.title)}</button>`).join('')
+    : '<span class="empty-note">這個標籤下沒有問題，請選擇其他標籤</span>';
   problemWrap.querySelectorAll('[data-simple-stage]').forEach(btn=>{
     btn.onclick=()=>{
       wizStageProblems[btn.dataset.simpleStage]=btn.dataset.problem;
-      renderSimpleStage(stage, list, problemId, detailId, detailLabelId);
+      renderSimpleStage(stage, list, tagId, tagLabelId, problemId, detailId, detailLabelId);
     };
   });
-  const selected = list.find(t=>t.id===wizStageProblems[stage]);
+  const selected = filtered.find(t=>t.id===wizStageProblems[stage]);
   if(!selected){
     detailWrap.innerHTML='';
     detailLabel.style.display='none';
@@ -800,7 +816,7 @@ function renderWizard(){
   document.getElementById('saleTypePost').classList.toggle('active', wizSaleType==='post');
 
   const openList = templates.filter(t=>t.stage==='open' && (t.saleType||'post')===wizSaleType);
-  renderSimpleStage('open', openList, 'wizOpen', 'wizOpenDetails', 'wizOpenDetailLabel');
+  renderSimpleStage('open', openList, 'wizOpenTagFilters', 'wizOpenTagLabel', 'wizOpen', 'wizOpenDetails', 'wizOpenDetailLabel');
 
   const catWrap = document.getElementById('wizBodyCat');
   catWrap.innerHTML = categories.map(c=>
@@ -819,10 +835,10 @@ function renderWizard(){
   renderWizardBodySub();
 
   const waitList = templates.filter(t=>t.stage==='wait');
-  renderSimpleStage('wait', waitList, 'wizWait', 'wizWaitDetails', 'wizWaitDetailLabel');
+  renderSimpleStage('wait', waitList, 'wizWaitTagFilters', 'wizWaitTagLabel', 'wizWait', 'wizWaitDetails', 'wizWaitDetailLabel');
 
   const closeList = templates.filter(t=>t.stage==='close' && (t.saleType||'post')===wizSaleType);
-  renderSimpleStage('close', closeList, 'wizClose', 'wizCloseDetails', 'wizCloseDetailLabel');
+  renderSimpleStage('close', closeList, 'wizCloseTagFilters', 'wizCloseTagLabel', 'wizClose', 'wizCloseDetails', 'wizCloseDetailLabel');
 }
 function renderWizardBodySub(){
   const tagWrap = document.getElementById('wizProblemTagFilters');
@@ -1188,7 +1204,7 @@ function openModal(id=null){
               ${categories.map(c=>`<option value="${c.id}" ${t.category===c.id?'selected':''}>${escapeHtml(c.label)}</option>`).join('')}
             </select>
           </div>
-          <div class="field" id="mTagsWrap" style="display:${t.stage==='body'?'block':'none'}">
+          <div class="field" id="mTagsWrap">
             <label>標籤（選填）</label>
             <input type="text" id="mTags" value="${escapeHtml((t.tags||[]).join('、'))}" placeholder="例如：急件、物流追蹤；以逗號分隔">
           </div>
@@ -1253,7 +1269,7 @@ function openModal(id=null){
   const waitWrap = overlay.querySelector('#mAppendWaitWrap');
   stageSel.onchange = ()=>{
     catWrap.style.display = stageSel.value==='body' ? 'block':'none';
-    tagsWrap.style.display = stageSel.value==='body' ? 'block':'none';
+    tagsWrap.style.display = 'block';
     saleWrap.style.display = (stageSel.value==='open'||stageSel.value==='close'||stageSel.value==='body') ? 'block':'none';
     waitWrap.style.display = stageSel.value==='body' ? 'block':'none';
   };
@@ -1333,7 +1349,7 @@ function openModal(id=null){
   overlay.querySelector('#mSave').onclick = async ()=>{
     const stage = overlay.querySelector('#mStage').value;
     const category = stage==='body' ? overlay.querySelector('#mCategory').value : null;
-    const tags = stage==='body' ? overlay.querySelector('#mTags').value.split(/[，,、]/).map(v=>v.trim()).filter(Boolean) : [];
+    const tags = overlay.querySelector('#mTags').value.split(/[，,、]/).map(v=>v.trim()).filter(Boolean);
     // 舊匯入資料若已有小類型欄位則保留，但不再把它當成精靈的分類層級。
     const subcategory = stage==='body' ? (t.subcategory || null) : null;
     const saleType = (stage==='open'||stage==='close'||stage==='body') ? overlay.querySelector('#mSaleType').value : null;
