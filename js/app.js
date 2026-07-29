@@ -597,8 +597,28 @@ function downloadBlankTemplate(){
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers]);
   ws['!cols'] = headers.map(name=>({wch:Math.max(14, String(name).length*2+4)}));
+
+  const guideRows = [
+    ['欄位', '用途／填寫方式'],
+    ['階段', '開頭、中段、查詢中或結尾。'],
+    ['大類型', '中段回覆使用，例如：物流、退換貨；其他階段可留白。'],
+    ['售前售後', '填售前、售後或皆可。'],
+    ['標籤', '所有階段都可填；多個標籤用「、」或逗號分隔。'],
+    ['標題', '網站中「選擇問題」顯示的名稱。'],
+    ['預設按鍵名稱／回覆內容', '最下層「細項」的預設按鍵與對應內容。'],
+    ['按鍵名稱2／回覆方式2', '其他細項按鍵與內容；需要更多版本可自行新增按鍵名稱4／回覆方式4等欄位。'],
+    ['提示文字', '純文字提示，可直接在儲存格內換行。'],
+    ['操作步驟／操作步驟連結', '同一列的第 N 行步驟，對應第 N 行網址；沒有網址可留空。'],
+    ['參考連結名稱／參考連結', '同一列的第 N 行名稱，對應第 N 行網址。'],
+    ['附帶查詢中', '中段回覆需要自動加入查詢中話術時填「是」，否則留空或填「否」。'],
+    ['日期與自動計算參數', '請在網站「管理現有參數」設定；例如鑑賞期截止日可設為取貨日期＋7天。']
+  ];
+  const guide = XLSX.utils.aoa_to_sheet(guideRows);
+  guide['!cols'] = [{wch:28},{wch:78}];
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '話術模板');
+  XLSX.utils.book_append_sheet(wb, guide, '欄位說明');
   XLSX.writeFile(wb, '客服話術空白模板.xlsx');
 }
 
