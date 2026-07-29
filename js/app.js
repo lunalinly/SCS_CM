@@ -1,3 +1,5 @@
+import { state } from './state.js';
+
 
 /* 全站 SVG Icon 庫 */
 const ICONS = {
@@ -79,23 +81,11 @@ const SEED_TEMPLATES = [
   {id:'s21', stage:'close', category:null, saleType:'pre', title:'售前結尾', content:'謝謝您的詢問!如果還有其他想了解的地方,都歡迎隨時再詢問小幫手喔![BS]'}
 ];
 
-let categories = [];
-let templates = [];
-let composeList = []; 
-let varsValues = {};
-let customVars = ['訂單編號']; 
-let activeStage = 'all';
-let activeCategory = 'all';
-let searchTerm = '';
-let editingId = null;
 
-let wizActiveCat = null;
-let wizSaleType = 'post';
-let sidebarMode = 'wizard';
 const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
 const SINGLE_STAGES = new Set(['open','wait','close']);
 
-function catLabel(id){ const c = categories.find(x=>x.id===id); return c ? c.label : (id||''); }
+function catLabel(id){ const c = state.categories.find(x=>x.id===id); return c ? c.label : (id||''); }
 
 async function loadCategories(){
   try{
@@ -110,7 +100,7 @@ async function loadCategories(){
 }
 
 async function saveCategories(list){
-  categories = list;
+  state.categories = list;
   try{ localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(list)); }
   catch(e){ console.error('儲存類型失敗', e); }
 }
@@ -128,7 +118,7 @@ async function loadTemplates(){
 }
 
 async function saveTemplates(list){
-  templates = list;
+  state.templates = list;
   try{ 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); 
     updateSaveBadge();
@@ -148,13 +138,13 @@ function loadCustomVars(){
 }
 
 function saveCustomVars(list){
-  customVars = list;
+  state.customVars = list;
   try{ localStorage.setItem(CUSTOM_VARS_KEY, JSON.stringify(list)); }catch(e){}
 }
 
 function updateSaveBadge(){
   const badge = document.getElementById('saveBadge');
-  if(badge) badge.title = `已有 ${templates.length} 則話術與 ${categories.length} 個分類保存於此瀏覽器中`;
+  if(badge) badge.title = `已有 ${state.templates.length} 則話術與 ${state.categories.length} 個分類保存於此瀏覽器中`;
 }
 
 const IMPORT_HEADER_ALIASES = {
@@ -217,7 +207,7 @@ function importFromRows(rows){
   if(!col.title || !col.content){
     return {error:'找不到「標題」或「回覆內容」欄位,請確認 Excel 欄位名稱,或先下載範本參考格式。'};
   }
-  const workingCats = categories.map(c=>({...c}));
+  const workingCats = state.categories.map(c=>({...c}));
   const valid = []; let skipped = 0;
   
   rows.forEach((r,i)=>{
@@ -260,7 +250,7 @@ function importFromRows(rows){
     });
   });
   
-  const existingIds = new Set(categories.map(c=>c.id));
+  const existingIds = new Set(state.categories.map(c=>c.id));
   const newCategories = workingCats.filter(c=>!existingIds.has(c.id));
   return {valid, skipped, newCategories};
 }
@@ -298,12 +288,12 @@ function openImportConfirmModal(result, filename){
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   overlay.querySelector('#impConfirm').onclick = async ()=>{
     const mode = overlay.querySelector('input[name=impMode]:checked').value;
-    templates = (mode==='replace') ? result.valid.slice() : [...result.valid, ...templates];
+    state.templates = (mode==='replace') ? result.valid.slice() : [...result.valid, ...templates];
     if(result.newCategories.length){
-      categories = [...categories, ...result.newCategories];
-      await saveCategories(categories);
+      state.categories = [...categories, ...result.newCategories];
+      await saveCategories(state.categories);
     }
-    await saveTemplates(templates);
+    await saveTemplates(state.templates);
     overlay.remove();
     renderAll();
     renderCompose();
@@ -313,13 +303,13 @@ function openImportConfirmModal(result, filename){
 
 function exportCurrentTemplates(){
   if(typeof XLSX==='undefined'){ showToast('匯出功能載入中,請稍後再試一次', true); return; }
-  if(!templates.length){ showToast('目前沒有話術可以匯出', true); return; }
+  if(!state.templates.length){ showToast('目前沒有話術可以匯出', true); return; }
   
   let maxVariants = 0;
-  templates.forEach(t=>{ if(t.variants && t.variants.length > maxVariants) maxVariants = t.variants.length; });
+  state.templates.forEach(t=>{ if(t.variants && t.variants.length > maxVariants) maxVariants = t.variants.length; });
   
   const saleTypeLabel = {pre:'售前', post:'售後', both:'皆可'};
-  const rows = templates.map(t=>{
+  const rows = state.templates.map(t=>{
     const row = {
       '階段': STAGE_LABEL_SHORT[t.stage] || t.stage,
       '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
@@ -367,9 +357,9 @@ function openJsonBackupModal(){
     const dump = {
       version: '3.0',
       exportedAt: new Date().toISOString(),
-      categories,
-      customVars,
-      templates
+      categories: state.categories,
+      customVars: state.customVars,
+      templates: state.templates
     };
     const blob = new Blob([JSON.stringify(dump, null, 2)], {type:'application/json'});
     const a = document.createElement('a');
@@ -393,12 +383,12 @@ function extractVars(text){
   return out;
 }
 function fillPlain(text){
-  return text.replace(/\{([^{}]+)\}/g, (m,p1) => (varsValues[p1] && varsValues[p1].trim()) ? varsValues[p1] : m);
+  return text.replace(/\{([^{}]+)\}/g, (m,p1) => (state.varsValues[p1] && state.varsValues[p1].trim()) ? state.varsValues[p1] : m);
 }
 function fillHtml(text){
   const escaped = escapeHtml(text);
   return escaped.replace(/\{([^{}]+)\}/g, (m,p1) => {
-    const v = varsValues[p1];
+    const v = state.varsValues[p1];
     return (v && v.trim()) ? escapeHtml(v) : `<mark>${escapeHtml(m)}</mark>`;
   });
 }
@@ -431,7 +421,7 @@ async function copyText(text){
 }
 
 function setSidebarMode(mode){
-  sidebarMode = mode;
+  state.sidebarMode = mode;
   document.querySelectorAll('.mode-tab').forEach(b=> b.classList.toggle('active', b.dataset.mode===mode));
   document.getElementById('wizardPanel').style.display = mode==='wizard' ? 'flex' : 'none';
   document.getElementById('browsePanel').style.display = mode==='browse' ? 'flex' : 'none';
@@ -449,8 +439,8 @@ function linkTag(t){
 }
 function renderActionHints(){
   const box = document.getElementById('actionHints');
-  const relevant = composeList
-    .map(c=>templates.find(t=>t.id===c.tplId))
+  const relevant = state.composeList
+    .map(c=>state.templates.find(t=>t.id===c.tplId))
     .filter(t=> t && (t.hint || t.link));
   if(!relevant.length){ box.style.display='none'; box.innerHTML=''; return; }
   box.style.display='block';
@@ -465,7 +455,7 @@ function renderActionHints(){
 function wizButtonsHtml(list){
   if(!list.length) return `<span class="empty-note">這個分類還沒有話術,可以到「瀏覽全部話術」新增一則</span>`;
   return list.map(t=>{
-    const isActive = SINGLE_STAGES.has(t.stage) && composeList.some(c=>c.tplId===t.id);
+    const isActive = SINGLE_STAGES.has(t.stage) && state.composeList.some(c=>c.tplId===t.id);
     const variantsCount = (t.variants || []).length + 1;
     let selHtml = '';
     if (variantsCount > 1) {
@@ -489,31 +479,31 @@ function attachWizEvents(container){
   });
 }
 function renderWizard(){
-  document.getElementById('saleTypePre').classList.toggle('active', wizSaleType==='pre');
-  document.getElementById('saleTypePost').classList.toggle('active', wizSaleType==='post');
+  document.getElementById('saleTypePre').classList.toggle('active', state.wizSaleType==='pre');
+  document.getElementById('saleTypePost').classList.toggle('active', state.wizSaleType==='post');
 
-  const openList = templates.filter(t=>t.stage==='open' && (t.saleType||'post')===wizSaleType);
+  const openList = state.templates.filter(t=>t.stage==='open' && (t.saleType||'post')===state.wizSaleType);
   const wizOpen = document.getElementById('wizOpen');
   wizOpen.innerHTML = wizButtonsHtml(openList);
   attachWizEvents(wizOpen);
 
   const catWrap = document.getElementById('wizBodyCat');
-  catWrap.innerHTML = categories.map(c=>
-    `<button type="button" class="wiz-chip ${wizActiveCat===c.id?'active':''}" data-cat="${c.id}"><span>${c.emoji}</span> ${escapeHtml(c.label)}</button>`
+  catWrap.innerHTML = state.categories.map(c=>
+    `<button type="button" class="wiz-chip ${state.wizActiveCat===c.id?'active':''}" data-cat="${c.id}"><span>${c.emoji}</span> ${escapeHtml(c.label)}</button>`
   ).join('') + `<button type="button" class="wiz-chip" id="btnManageCats">${icon('settings')} 管理類型</button>`;
   catWrap.querySelectorAll('[data-cat]').forEach(b=>{
-    b.onclick = ()=>{ wizActiveCat = (wizActiveCat===b.dataset.cat) ? null : b.dataset.cat; renderWizardBodySub(); };
+    b.onclick = ()=>{ state.wizActiveCat = (state.wizActiveCat===b.dataset.cat) ? null : b.dataset.cat; renderWizardBodySub(); };
   });
   const manageBtn = document.getElementById('btnManageCats');
   if(manageBtn) manageBtn.onclick = openCategoryModal;
   renderWizardBodySub();
 
-  const waitList = templates.filter(t=>t.stage==='wait');
+  const waitList = state.templates.filter(t=>t.stage==='wait');
   const wizWait = document.getElementById('wizWait');
   wizWait.innerHTML = wizButtonsHtml(waitList);
   attachWizEvents(wizWait);
 
-  const closeList = templates.filter(t=>t.stage==='close' && (t.saleType||'post')===wizSaleType);
+  const closeList = state.templates.filter(t=>t.stage==='close' && (t.saleType||'post')===state.wizSaleType);
   const wizClose = document.getElementById('wizClose');
   wizClose.innerHTML = wizButtonsHtml(closeList);
   attachWizEvents(wizClose);
@@ -521,12 +511,12 @@ function renderWizard(){
 function renderWizardBodySub(){
   const subWrap = document.getElementById('wizBodySub');
   const subLabel = document.getElementById('wizBodySubLabel');
-  if(!wizActiveCat){ subWrap.innerHTML=''; subLabel.style.display='none'; return; }
+  if(!state.wizActiveCat){ subWrap.innerHTML=''; subLabel.style.display='none'; return; }
   subLabel.style.display='block';
-  const list = templates.filter(t=>{
-    if(t.stage!=='body' || t.category!==wizActiveCat) return false;
+  const list = state.templates.filter(t=>{
+    if(t.stage!=='body' || t.category!==state.wizActiveCat) return false;
     const st = t.saleType || 'both';
-    return st==='both' || st===wizSaleType;
+    return st==='both' || st===state.wizSaleType;
   });
   subWrap.innerHTML = wizButtonsHtml(list);
   attachWizEvents(subWrap);
@@ -538,34 +528,34 @@ function renderStageChips(){
   wrap.innerHTML = stages.map(s=>{
     const label = s==='all' ? '全部' : STAGE_LABEL_SHORT[s];
     const cls = s==='all' ? '' : 'stage-'+s;
-    return `<button class="chip ${cls} ${activeStage===s?'active':''}" data-stage="${s}">${label}</button>`;
+    return `<button class="chip ${cls} ${state.activeStage===s?'active':''}" data-stage="${s}">${label}</button>`;
   }).join('');
   wrap.querySelectorAll('.chip').forEach(btn=>{
-    btn.onclick = ()=>{ activeStage = btn.dataset.stage; activeCategory='all'; renderAll(); };
+    btn.onclick = ()=>{ state.activeStage = btn.dataset.stage; state.activeCategory='all'; renderAll(); };
   });
-  document.getElementById('categoryWrap').style.display = (activeStage==='body' || activeStage==='all') ? 'block' : 'none';
+  document.getElementById('categoryWrap').style.display = (state.activeStage==='body' || state.activeStage==='all') ? 'block' : 'none';
 }
 function renderCategoryChips(){
   const cats = ['all', ...categories.map(c=>c.id)];
   const wrap = document.getElementById('categoryChips');
   wrap.innerHTML = cats.map(c=>{
     const label = c==='all' ? '全部類型' : catLabel(c);
-    return `<button class="chip ${activeCategory===c?'active':''}" data-cat="${c}">${label}</button>`;
+    return `<button class="chip ${state.activeCategory===c?'active':''}" data-cat="${c}">${label}</button>`;
   }).join('') + `<button class="chip" id="btnManageCats2">${icon('settings')} 管理</button>`;
   wrap.querySelectorAll('[data-cat]').forEach(btn=>{
-    btn.onclick = ()=>{ activeCategory = btn.dataset.cat; renderList(); };
+    btn.onclick = ()=>{ state.activeCategory = btn.dataset.cat; renderList(); };
   });
   const manageBtn2 = document.getElementById('btnManageCats2');
   if(manageBtn2) manageBtn2.onclick = openCategoryModal;
 }
 
 function filteredTemplates(){
-  return templates.filter(t=>{
-    if(activeStage!=='all' && t.stage!==activeStage) return false;
-    if(activeStage!=='wait' && activeStage!=='open' && activeStage!=='close' && activeCategory!=='all' && t.category!==activeCategory) return false;
-    if(searchTerm){
+  return state.templates.filter(t=>{
+    if(state.activeStage!=='all' && t.stage!==state.activeStage) return false;
+    if(state.activeStage!=='wait' && state.activeStage!=='open' && state.activeStage!=='close' && state.activeCategory!=='all' && t.category!==state.activeCategory) return false;
+    if(state.searchTerm){
       const hay = (t.title+' '+t.content+' '+(t.variants||[]).join(' ')).toLowerCase();
-      if(!hay.includes(searchTerm.toLowerCase())) return false;
+      if(!hay.includes(state.searchTerm.toLowerCase())) return false;
     }
     return true;
   });
@@ -622,25 +612,25 @@ function renderList(){
 function genInstId(){ return 'i'+Date.now()+Math.random().toString(36).slice(2,6); }
 
 function insertTemplate(tplId, variantIndex = 0, autoAppended = false){
-  const t = templates.find(x=>x.id===tplId);
+  const t = state.templates.find(x=>x.id===tplId);
   if(!t) return;
   if(SINGLE_STAGES.has(t.stage)){
-    composeList = composeList.filter(c=>{
-      const ct = templates.find(x=>x.id===c.tplId);
+    state.composeList = state.composeList.filter(c=>{
+      const ct = state.templates.find(x=>x.id===c.tplId);
       return !(ct && ct.stage===t.stage);
     });
   }
-  let idx = composeList.length;
-  for(let i=0;i<composeList.length;i++){
-    const ct = templates.find(x=>x.id===composeList[i].tplId);
+  let idx = state.composeList.length;
+  for(let i=0;i<state.composeList.length;i++){
+    const ct = state.templates.find(x=>x.id===state.composeList[i].tplId);
     if(ct && STAGE_ORDER[ct.stage] > STAGE_ORDER[t.stage]){ idx = i; break; }
   }
-  composeList.splice(idx, 0, {instId:genInstId(), tplId, variantIndex});
+  state.composeList.splice(idx, 0, {instId:genInstId(), tplId, variantIndex});
   
   if(!autoAppended && t.stage === 'body' && t.appendWait) {
-    const hasWait = composeList.some(c => templates.find(x => x.id === c.tplId)?.stage === 'wait');
+    const hasWait = state.composeList.some(c => state.templates.find(x => x.id === c.tplId)?.stage === 'wait');
     if (!hasWait) {
-      const waitTpl = templates.find(x => x.stage === 'wait'); 
+      const waitTpl = state.templates.find(x => x.stage === 'wait'); 
       if (waitTpl) {
         insertTemplate(waitTpl.id, 0, true);
         showToast('已加入並自動附帶查詢中話術');
@@ -655,16 +645,16 @@ function insertTemplate(tplId, variantIndex = 0, autoAppended = false){
   renderCompose();
   renderWizard();
 }
-function removeInst(instId){ composeList = composeList.filter(c=>c.instId!==instId); renderCompose(); renderWizard(); }
+function removeInst(instId){ state.composeList = state.composeList.filter(c=>c.instId!==instId); renderCompose(); renderWizard(); }
 function moveInst(instId, dir){
-  const idx = composeList.findIndex(c=>c.instId===instId);
+  const idx = state.composeList.findIndex(c=>c.instId===instId);
   const newIdx = idx+dir;
-  if(newIdx<0 || newIdx>=composeList.length) return;
-  [composeList[idx], composeList[newIdx]] = [composeList[newIdx], composeList[idx]];
+  if(newIdx<0 || newIdx>=state.composeList.length) return;
+  [state.composeList[idx], state.composeList[newIdx]] = [state.composeList[newIdx], state.composeList[idx]];
   renderCompose();
 }
 function setVariant(instId, variantIndex){
-  const c = composeList.find(x=>x.instId===instId);
+  const c = state.composeList.find(x=>x.instId===instId);
   if(!c) return;
   c.variantIndex = variantIndex;
   renderBubblesOnly();
@@ -672,8 +662,8 @@ function setVariant(instId, variantIndex){
 
 function currentVars(){
   const all = [];
-  composeList.forEach(c=>{
-    const t = templates.find(x=>x.id===c.tplId);
+  state.composeList.forEach(c=>{
+    const t = state.templates.find(x=>x.id===c.tplId);
     if(t) extractVars(instanceText(t, c.variantIndex||0)).forEach(v=>{ if(!all.includes(v)) all.push(v); });
   });
   return all;
@@ -689,16 +679,16 @@ function renderVarBar(){
   bar.innerHTML = `<span class="var-bar-label">填入變數</span>` + allVars.map(v=>`
     <div class="var-field">
       <label>${escapeHtml(v)}</label>
-      <input type="text" data-var="${escapeHtml(v)}" value="${escapeHtml(varsValues[v]||'')}" placeholder="輸入內容">
+      <input type="text" data-var="${escapeHtml(v)}" value="${escapeHtml(state.varsValues[v]||'')}" placeholder="輸入內容">
     </div>`).join('');
     
   bar.querySelectorAll('input').forEach(inp=>{
-    inp.oninput = ()=>{ varsValues[inp.dataset.var] = inp.value; syncVarInputs(); };
+    inp.oninput = ()=>{ state.varsValues[inp.dataset.var] = inp.value; syncVarInputs(); };
   });
 }
 function syncVarInputs(){
   document.querySelectorAll('[data-var]').forEach(inp=>{
-    const v = varsValues[inp.dataset.var] || '';
+    const v = state.varsValues[inp.dataset.var] || '';
     if(inp.value !== v) inp.value = v;
   });
   renderBubblesOnly();
@@ -709,14 +699,14 @@ function renderCompose(){
   renderActionHints();
   const area = document.getElementById('composeArea');
   const actions = document.getElementById('composeActions');
-  if(!composeList.length){
+  if(!state.composeList.length){
     area.innerHTML = `<div class="compose-empty">${icon('chat')}<p>從左側點選「加入回覆」<br>開始組合給客人的訊息</p></div>`;
     actions.style.display='none';
     return;
   }
   actions.style.display='flex';
-  area.innerHTML = composeList.map(c=>{
-    const t = templates.find(x=>x.id===c.tplId);
+  area.innerHTML = state.composeList.map(c=>{
+    const t = state.templates.find(x=>x.id===c.tplId);
     if(!t) return '';
     const variants = allVariants(t);
     const vi = c.variantIndex || 0;
@@ -757,11 +747,11 @@ function renderCompose(){
     if(sel) sel.onchange = (e)=> setVariant(instId, parseInt(e.target.value));
     
     row.querySelector('[data-act=copy]').onclick = async ()=>{
-      const c = composeList.find(x=>x.instId===instId);
-      const t = templates.find(x=>x.id===c.tplId);
+      const c = state.composeList.find(x=>x.instId===instId);
+      const t = state.templates.find(x=>x.id===c.tplId);
       const text = instanceText(t, c.variantIndex||0);
       const plain = fillPlain(text);
-      const hasEmpty = extractVars(text).some(v=>!(varsValues[v]&&varsValues[v].trim()));
+      const hasEmpty = extractVars(text).some(v=>!(state.varsValues[v]&&state.varsValues[v].trim()));
       const ok = await copyText(plain);
       if(ok) showToast(hasEmpty ? '已複製,但還有變數未填喔' : '已複製這段', hasEmpty);
       else showToast('複製失敗,請手動選取', true);
@@ -771,8 +761,8 @@ function renderCompose(){
 function renderBubblesOnly(){
   document.querySelectorAll('.bubble-row').forEach(row=>{
     const instId = row.dataset.inst;
-    const c = composeList.find(x=>x.instId===instId);
-    const t = templates.find(x=>x.id===c.tplId);
+    const c = state.composeList.find(x=>x.instId===instId);
+    const t = state.templates.find(x=>x.id===c.tplId);
     row.querySelector('[data-content]').innerHTML = fillHtml(instanceText(t, c.variantIndex||0));
     const variants = allVariants(t);
     const tag = row.querySelector('.bubble-stage-tag');
@@ -781,8 +771,8 @@ function renderBubblesOnly(){
 }
 
 function openModal(id=null){
-  editingId = id;
-  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,saleType:'both',title:'',content:'',variants:[], appendWait:false};
+  state.editingId = id;
+  const t = id ? state.templates.find(x=>x.id===id) : {stage:'body',category:(state.categories[0]||{}).id||null,saleType:'both',title:'',content:'',variants:[], appendWait:false};
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -802,7 +792,7 @@ function openModal(id=null){
           <div class="field" id="mCatWrap" style="display:${t.stage==='body'?'block':'none'}">
             <label>問題類型</label>
             <select id="mCategory">
-              ${categories.map(c=>`<option value="${c.id}" ${t.category===c.id?'selected':''}>${escapeHtml(c.label)}</option>`).join('')}
+              ${state.categories.map(c=>`<option value="${c.id}" ${t.category===c.id?'selected':''}>${escapeHtml(c.label)}</option>`).join('')}
             </select>
           </div>
           <div class="field" id="mSaleWrap" style="display:${(t.stage==='open'||t.stage==='close'||t.stage==='body')?'block':'none'}">
@@ -904,12 +894,12 @@ function openModal(id=null){
     
     if(!title || !content){ showToast('請填寫標題與內容', true); return; }
     if(id){
-      const idx = templates.findIndex(x=>x.id===id);
-      templates[idx] = {...templates[idx], stage, category, saleType, title, content, variants, appendWait, hint, link};
+      const idx = state.templates.findIndex(x=>x.id===id);
+      state.templates[idx] = {...templates[idx], stage, category, saleType, title, content, variants, appendWait, hint, link};
     }else{
-      templates.unshift({id:'u'+Date.now(), stage, category, saleType, title, content, variants, appendWait, hint, link});
+      state.templates.unshift({id:'u'+Date.now(), stage, category, saleType, title, content, variants, appendWait, hint, link});
     }
-    await saveTemplates(templates);
+    await saveTemplates(state.templates);
     overlay.remove();
     renderAll();
     renderCompose();
@@ -945,8 +935,8 @@ function openCategoryModal(){
 
   function renderCtList(){
     const listEl = overlay.querySelector('#ctList');
-    listEl.innerHTML = categories.map(c=>{
-      const count = templates.filter(t=>t.stage==='body' && t.category===c.id).length;
+    listEl.innerHTML = state.categories.map(c=>{
+      const count = state.templates.filter(t=>t.stage==='body' && t.category===c.id).length;
       return `
       <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;">
         <span style="font-size:15px;">${c.emoji}</span>
@@ -967,9 +957,9 @@ function openCategoryModal(){
     const label = overlay.querySelector('#ctNewLabel').value.trim();
     const emoji = overlay.querySelector('#ctEmoji').value.trim() || '🏷️';
     if(!label){ showToast('請輸入類型名稱', true); return; }
-    if(categories.some(c=>c.label===label)){ showToast('已經有這個類型了', true); return; }
-    categories = [...categories, {id:'c'+Date.now()+Math.random().toString(36).slice(2,5), label, emoji}];
-    saveCategories(categories);
+    if(state.categories.some(c=>c.label===label)){ showToast('已經有這個類型了', true); return; }
+    state.categories = [...categories, {id:'c'+Date.now()+Math.random().toString(36).slice(2,5), label, emoji}];
+    saveCategories(state.categories);
     overlay.querySelector('#ctNewLabel').value = '';
     renderCtList();
     renderAll();
@@ -981,32 +971,32 @@ function openCategoryModal(){
 }
 
 function moveCategory(catId, dir, after){
-  const idx = categories.findIndex(c=>c.id===catId);
+  const idx = state.categories.findIndex(c=>c.id===catId);
   const newIdx = idx + dir;
-  if(idx<0 || newIdx<0 || newIdx>=categories.length) return;
-  categories = categories.slice();
-  [categories[idx], categories[newIdx]] = [categories[newIdx], categories[idx]];
-  saveCategories(categories);
+  if(idx<0 || newIdx<0 || newIdx>=state.categories.length) return;
+  state.categories = state.categories.slice();
+  [state.categories[idx], state.categories[newIdx]] = [state.categories[newIdx], state.categories[idx]];
+  saveCategories(state.categories);
   if(after) after();
   renderAll();
 }
 function deleteCategory(catId, afterDelete){
-  if(categories.length<=1){ showToast('至少要保留一個問題類型', true); return; }
-  const cat = categories.find(c=>c.id===catId);
+  if(state.categories.length<=1){ showToast('至少要保留一個問題類型', true); return; }
+  const cat = state.categories.find(c=>c.id===catId);
   if(!cat) return;
-  const affected = templates.filter(t=>t.stage==='body' && t.category===catId).length;
+  const affected = state.templates.filter(t=>t.stage==='body' && t.category===catId).length;
   const msg = affected
     ? `刪除「${cat.label}」會把底下 ${affected} 則中段話術移到其他類型,要繼續嗎?`
     : `確定要刪除「${cat.label}」這個類型嗎?`;
   
   customConfirm(msg, () => {
-    categories = categories.filter(c=>c.id!==catId);
-    const fallback = categories.find(c=>c.label==='其他') || categories[0];
-    templates.forEach(t=>{ if(t.stage==='body' && t.category===catId) t.category = fallback.id; });
-    saveCategories(categories);
-    saveTemplates(templates);
-    if(wizActiveCat===catId) wizActiveCat = null;
-    if(activeCategory===catId) activeCategory = 'all';
+    state.categories = state.categories.filter(c=>c.id!==catId);
+    const fallback = state.categories.find(c=>c.label==='其他') || state.categories[0];
+    state.templates.forEach(t=>{ if(t.stage==='body' && t.category===catId) t.category = fallback.id; });
+    saveCategories(state.categories);
+    saveTemplates(state.templates);
+    if(state.wizActiveCat===catId) state.wizActiveCat = null;
+    if(state.activeCategory===catId) state.activeCategory = 'all';
     if(afterDelete) afterDelete();
     renderAll();
     renderCompose();
@@ -1038,11 +1028,11 @@ function openVarsModal(){
 
   function renderCvList(){
     const listEl = overlay.querySelector('#cvList');
-    if(!customVars.length) {
+    if(!state.customVars.length) {
       listEl.innerHTML = `<span style="font-size:12px;color:var(--ink-faint);">目前沒有常設參數</span>`;
       return;
     }
-    listEl.innerHTML = customVars.map((v, i)=>`
+    listEl.innerHTML = state.customVars.map((v, i)=>`
       <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--surface-alt);">
         <div style="flex:1;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;">
           <span style="font-size:13px;font-weight:700;">${escapeHtml(v)}</span>
@@ -1053,8 +1043,8 @@ function openVarsModal(){
     
     listEl.querySelectorAll('[data-del]').forEach(btn=>{
       btn.onclick = ()=> {
-        customVars.splice(Number(btn.dataset.del), 1);
-        saveCustomVars(customVars);
+        state.customVars.splice(Number(btn.dataset.del), 1);
+        saveCustomVars(state.customVars);
         renderCvList();
         renderVarBar();
       };
@@ -1065,10 +1055,10 @@ function openVarsModal(){
   overlay.querySelector('#cvAdd').onclick = ()=>{
     const label = overlay.querySelector('#cvNewLabel').value.trim();
     if(!label){ showToast('請輸入參數名稱', true); return; }
-    if(customVars.includes(label)){ showToast('已經有這個參數了', true); return; }
+    if(state.customVars.includes(label)){ showToast('已經有這個參數了', true); return; }
     
-    customVars.push(label);
-    saveCustomVars(customVars);
+    state.customVars.push(label);
+    saveCustomVars(state.customVars);
     overlay.querySelector('#cvNewLabel').value = '';
     renderCvList();
     renderVarBar();
@@ -1082,9 +1072,9 @@ function openVarsModal(){
 
 function deleteTemplate(id){
   customConfirm('確定要刪除這則話術嗎？', () => {
-    templates = templates.filter(t => t.id !== id);
-    saveTemplates(templates);
-    composeList = composeList.filter(c => c.tplId !== id);
+    state.templates = state.templates.filter(t => t.id !== id);
+    saveTemplates(state.templates);
+    state.composeList = state.composeList.filter(c => c.tplId !== id);
     renderAll();
     renderCompose();
     showToast('已刪除話術');
@@ -1096,14 +1086,14 @@ function renderAll(){
   renderCategoryChips();
   renderList();
   renderWizard();
-  document.getElementById('statCount').textContent = templates.length;
+  document.getElementById('statCount').textContent = state.templates.length;
   updateSaveBadge();
 }
 
 async function init(){
-  customVars = loadCustomVars();
-  categories = await loadCategories();
-  templates = await loadTemplates();
+  state.customVars = loadCustomVars();
+  state.categories = await loadCategories();
+  state.templates = await loadTemplates();
   
   document.getElementById('btnExport').onclick = exportCurrentTemplates;
   document.getElementById('btnBackupModal').onclick = openJsonBackupModal;
@@ -1120,13 +1110,13 @@ async function init(){
         try{
           const dump = JSON.parse(re.target.result);
           if(dump.templates && Array.isArray(dump.templates)){
-            templates = dump.templates;
-            if(dump.categories && Array.isArray(dump.categories)) categories = dump.categories;
-            if(dump.customVars && Array.isArray(dump.customVars)) customVars = dump.customVars;
+            state.templates = dump.templates;
+            if(dump.categories && Array.isArray(dump.categories)) state.categories = dump.categories;
+            if(dump.customVars && Array.isArray(dump.customVars)) state.customVars = dump.customVars;
             
-            await saveTemplates(templates);
-            await saveCategories(categories);
-            saveCustomVars(customVars);
+            await saveTemplates(state.templates);
+            await saveCategories(state.categories);
+            saveCustomVars(state.customVars);
             
             renderAll();
             renderCompose();
@@ -1169,9 +1159,9 @@ async function init(){
     customConfirm('確定要還原為預設話術嗎？這會清除您所有的自訂內容與匯入資料。', async () => {
       await saveTemplates(SEED_TEMPLATES);
       await saveCategories(SEED_CATEGORIES);
-      templates = SEED_TEMPLATES.slice();
-      categories = SEED_CATEGORIES.slice();
-      composeList = [];
+      state.templates = SEED_TEMPLATES.slice();
+      state.categories = SEED_CATEGORIES.slice();
+      state.composeList = [];
       renderAll();
       renderCompose();
       showToast('已還原為預設話術');
@@ -1179,23 +1169,23 @@ async function init(){
   };
 
   document.getElementById('btnClear').onclick = ()=>{
-    composeList = []; renderCompose(); renderWizard();
+    state.composeList = []; renderCompose(); renderWizard();
   };
   
   document.getElementById('btnCopyAll').onclick = async ()=>{
-    if(!composeList.length) return;
-    let fullText = composeList.map(c=>{
-      const t = templates.find(x=>x.id===c.tplId);
+    if(!state.composeList.length) return;
+    let fullText = state.composeList.map(c=>{
+      const t = state.templates.find(x=>x.id===c.tplId);
       return fillPlain(instanceText(t, c.variantIndex||0));
     }).join('\n\n');
-    const hasEmpty = currentVars().some(v=>!(varsValues[v]&&varsValues[v].trim()));
+    const hasEmpty = currentVars().some(v=>!(state.varsValues[v]&&state.varsValues[v].trim()));
     const ok = await copyText(fullText);
     if(ok) showToast(hasEmpty ? '已複製全部,但還有變數未填喔' : '已複製全部回覆', hasEmpty);
     else showToast('複製失敗', true);
   };
 
   document.getElementById('searchInput').oninput = (e)=>{
-    searchTerm = e.target.value;
+    state.searchTerm = e.target.value;
     renderList();
   };
 
@@ -1203,8 +1193,8 @@ async function init(){
     b.onclick = ()=> setSidebarMode(b.dataset.mode);
   });
 
-  document.getElementById('saleTypePre').onclick = ()=>{ wizSaleType='pre'; renderWizard(); };
-  document.getElementById('saleTypePost').onclick = ()=>{ wizSaleType='post'; renderWizard(); };
+  document.getElementById('saleTypePre').onclick = ()=>{ state.wizSaleType='pre'; renderWizard(); };
+  document.getElementById('saleTypePost').onclick = ()=>{ state.wizSaleType='post'; renderWizard(); };
 
   document.getElementById('btnManageVars').onclick = openVarsModal;
 
