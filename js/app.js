@@ -179,6 +179,7 @@ const IMPORT_HEADER_ALIASES = {
   saletype:['售前售後','售前/售後','情境','saletype'],
   title:['標題','title','名稱'],
   content:['內容','回覆','回覆內容','第一版','預設回覆','content'],
+  defaultVariantLabel:['預設按鍵名稱','預設回覆名稱','defaultVariantLabel'],
   appendWait:['附帶查詢中','加上請稍等','附帶等待話術'],
   hint:['提示','建議動作','動作','hint'],
   link:['連結','link','網址']
@@ -238,6 +239,7 @@ function importFromRows(rows){
     saletype: findCol(keys, IMPORT_HEADER_ALIASES.saletype),
     title: findCol(keys, IMPORT_HEADER_ALIASES.title),
     content: findCol(keys, IMPORT_HEADER_ALIASES.content),
+    defaultVariantLabel: findCol(keys, IMPORT_HEADER_ALIASES.defaultVariantLabel),
     appendWait: findCol(keys, IMPORT_HEADER_ALIASES.appendWait),
     hint: findCol(keys, IMPORT_HEADER_ALIASES.hint),
     link: findCol(keys, IMPORT_HEADER_ALIASES.link)
@@ -253,6 +255,9 @@ function importFromRows(rows){
   rows.forEach((r,i)=>{
     const title = String(r[col.title] ?? '').trim();
     let content = String(r[col.content] ?? '').trim();
+    const defaultVariantLabel = col.defaultVariantLabel
+      ? String(r[col.defaultVariantLabel] ?? '').trim() || '預設回覆'
+      : '預設回覆';
     if(!title || !content){ skipped++; return; }
     const stage = (col.stage ? stageFromText(r[col.stage]) : null) || 'body';
     let category = null;
@@ -294,7 +299,7 @@ function importFromRows(rows){
     
     valid.push({
       id:'x'+Date.now()+'_'+i+Math.random().toString(36).slice(2,5), 
-      stage, category, subcategory, saleType, title, content, variants, variantLabels,
+      stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels,
       appendWait: appendWait || undefined,
       hint: hint || undefined, link: link || undefined
     });
@@ -353,7 +358,7 @@ function openImportConfirmModal(result, filename){
 
 function templateFingerprint(t){
   return JSON.stringify([
-    t.stage || '', t.category || '', t.subcategory || '', t.saleType || '', t.title || '', t.content || '',
+    t.stage || '', t.category || '', t.subcategory || '', t.saleType || '', t.title || '', t.defaultVariantLabel || '', t.content || '',
     Array.isArray(t.variants) ? t.variants : [], Array.isArray(t.variantLabels) ? t.variantLabels : [],
     !!t.appendWait, t.hint || '', t.link || ''
   ]);
@@ -477,6 +482,7 @@ function exportCurrentTemplates(){
       '大類型': t.category ? catLabel(t.category) : '',
       '小類型': t.subcategory || '',
       '標題': t.title,
+      '預設按鍵名稱': t.defaultVariantLabel || '預設回覆',
       '回覆內容': t.content,
       '附帶查詢中': t.appendWait ? '是' : '否'
     };
