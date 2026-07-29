@@ -650,6 +650,15 @@ function extractVars(text){
   while((m = re.exec(text))){ if(!out.includes(m[1])) out.push(m[1]); }
   return out;
 }
+function allTemplateVariables(){
+  const result = [];
+  templates.forEach(t=>{
+    allVariants(t).forEach(text=>extractVars(text).forEach(name=>{
+      if(!result.includes(name)) result.push(name);
+    }));
+  });
+  return result;
+}
 function fillPlain(text){
   return text.replace(/\{([^{}]+)\}/g, (m,p1) => (resolvedVarValue(p1) && String(resolvedVarValue(p1)).trim()) ? resolvedVarValue(p1) : m);
 }
@@ -1441,7 +1450,11 @@ function openVarsModal(){
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  const discoveredNames = allTemplateVariables();
   let draft = customVars.map(v=>({...v}));
+  discoveredNames.forEach(name=>{
+    if(!draft.some(v=>v.name===name)) draft.push(makeCustomVar(name));
+  });
 
   function readDraft(){
     overlay.querySelectorAll('[data-cv-name]').forEach(inp=>{ const v=draft.find(x=>x.id===inp.dataset.cvName); if(v) v.name=inp.value.trim(); });
@@ -1454,8 +1467,10 @@ function openVarsModal(){
     if(!draft.length){ list.innerHTML='<span class="field-hint">尚未新增常設參數</span>'; return; }
     list.innerHTML = draft.map(v=>{
       const baseOptions = draft.filter(x=>x.id!==v.id && x.kind==='date').map(x=>`<option value="${x.id}" ${v.baseId===x.id?'selected':''}>${escapeHtml(x.name)}</option>`).join('');
+      const detected = discoveredNames.includes(v.name);
       return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;gap:8px;align-items:flex-start;">
         <div style="flex:1;display:grid;grid-template-columns:1fr 110px;gap:8px;">
+          <div style="grid-column:1/-1;display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--ink-faint);">${detected?'話術中已使用':'常設參數'}</span></div>
           <input data-cv-name="${v.id}" value="${escapeHtml(v.name)}" placeholder="參數名稱">
           <select data-cv-kind="${v.id}"><option value="text" ${v.kind==='text'?'selected':''}>純文字</option><option value="date" ${v.kind==='date'?'selected':''}>日期</option></select>
           ${v.kind==='date'? `<select data-cv-base="${v.id}"><option value="">手動輸入日期</option>${baseOptions}</select><input type="number" data-cv-offset="${v.id}" value="${v.offsetDays||0}" placeholder="+ N 天" title="相對基準日期的天數"></input>` : ''}
