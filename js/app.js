@@ -619,7 +619,7 @@ function downloadBlankTemplate(){
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '話術模板');
   XLSX.utils.book_append_sheet(wb, guide, '欄位說明');
-  XLSX.writeFile(wb, '客服話術空白模板.xlsx');
+  XLSX.writeFile(wb, '客服話術模板.xlsx');
 }
 
 function openJsonBackupModal(){
