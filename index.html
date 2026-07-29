@@ -153,14 +153,28 @@
   }
   .wiz-sub-label{font-size:11px;color:var(--ink-faint);margin:6px 0 6px;font-weight:600;}
   .wiz-btns{display:flex;flex-wrap:wrap;gap:7px;}
-  .wiz-btn{
-    display:inline-flex;align-items:center;gap:5px;
-    border:1px solid var(--line);background:var(--surface);
-    border-radius:9px;padding:7px 11px;font-size:12px;font-weight:700;color:var(--ink);
-    transition:all .12s;
+  
+  .wiz-btn-group{
+    display:inline-flex;align-items:stretch;
+    border:1px solid var(--line);border-radius:9px;background:var(--surface);
+    overflow:hidden;transition:all .12s;
   }
-  .wiz-btn:hover{border-color:var(--shopee);background:var(--shopee-soft);color:var(--shopee-deep);}
-  .wiz-btn.active{background:var(--shopee);border-color:var(--shopee);color:#fff;}
+  .wiz-btn-group:hover{border-color:var(--shopee);}
+  .wiz-btn{
+    border:none;background:transparent;
+    padding:7px 11px;font-size:12px;font-weight:700;color:var(--ink);
+    display:inline-flex;align-items:center;gap:5px;
+    cursor:pointer;
+  }
+  .wiz-btn:hover{background:var(--shopee-soft);color:var(--shopee-deep);}
+  .wiz-btn.active{background:var(--shopee);color:#fff;}
+  .wiz-variant-sel{
+    border:none;background:var(--surface-alt);border-left:1px solid var(--line);
+    font-size:11px;font-weight:600;color:var(--ink-soft);padding:0 4px;
+    cursor:pointer;outline:none;
+  }
+  .wiz-variant-sel:hover{background:var(--line-soft);color:var(--ink);}
+
   .wiz-chip{
     border:1px solid var(--line);background:var(--surface-alt);color:var(--ink-soft);
     border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;
@@ -229,6 +243,7 @@
   .badge-wait{background:var(--amber-soft);color:var(--amber);}
   .badge-close{background:var(--plum-soft);color:var(--plum);}
   .badge-cat{background:var(--shopee-soft);color:var(--shopee-deep);}
+  .badge-appwait{background:var(--shopee-soft);color:var(--shopee-deep);border:1px dashed var(--shopee);}
   .tpl-title{font-size:13.5px;font-weight:700;margin:0 0 4px;color:var(--ink);}
   .tpl-preview{
     font-size:12.5px;line-height:1.6;color:var(--ink-soft);
@@ -237,6 +252,10 @@
   }
   .tpl-actions{display:flex;align-items:center;gap:6px;}
   .tpl-actions .btn{flex:1;justify-content:center;}
+  .tpl-actions select{
+    border:1px solid var(--line);border-radius:999px;background:var(--surface-alt);
+    font-size:12px;font-weight:600;color:var(--ink);padding:6px;outline:none;
+  }
   .icon-btn{
     border:1px solid var(--line);background:var(--surface-alt);color:var(--ink-soft);
     border-radius:8px;padding:7px;display:flex;
@@ -265,43 +284,6 @@
     background:var(--surface-alt);border-bottom:1px solid var(--line);
     padding:10px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
   }
-  .quick-field{display:flex;align-items:center;gap:0;}
-  .quick-field label{
-    font-size:12px;font-weight:700;color:var(--ink);
-    background:var(--surface);border:1px solid var(--line);border-right:none;
-    padding:7px 10px;border-radius:9px 0 0 9px;white-space:nowrap;
-  }
-  .quick-field input{
-    border:1px solid var(--line);border-radius:0 9px 9px 0;
-    padding:7px 12px;font-size:13px;outline:none;width:240px;color:var(--ink);
-    background:var(--surface);
-  }
-  .quick-field input:focus{border-color:var(--shopee);}
-  #btnCalc{margin-left:auto;}
-
-  /* ---- Logistics calculator ---- */
-  .calc-plans{display:flex;flex-direction:column;gap:10px;}
-  .calc-plan{
-    border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;
-    border-left:4px solid var(--plan-color, var(--ink-faint));
-  }
-  .calc-plan-head{
-    padding:9px 12px 6px;font-size:13px;font-weight:800;color:var(--ink);
-    background:var(--surface-alt);
-  }
-  .calc-plan-area{padding:0 12px 10px;font-size:11px;color:var(--ink-faint);line-height:1.6;}
-  .calc-plan-rows{display:flex;flex-direction:column;gap:6px;padding:0 12px 10px;}
-  .calc-row{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-    border:1px solid var(--line);background:var(--surface);
-    border-radius:9px;padding:8px 12px;font-size:12.5px;color:var(--ink-soft);
-    font-weight:600;text-align:left;transition:all .12s;
-  }
-  .calc-row:hover{border-color:var(--ink-faint);}
-  .calc-row .calc-result{font-weight:800;color:var(--ink);}
-  .calc-row.active{background:var(--shopee-soft);border-color:var(--shopee);color:var(--shopee-deep);}
-  .calc-row.active .calc-result{color:var(--shopee-deep);}
-  .calc-date-field{margin-top:16px;}
   
   .var-bar{
     background:var(--surface);border-bottom:1px solid var(--line);
@@ -362,23 +344,49 @@
   }
   .bubble-toolbar{
     display:flex;gap:6px;margin-top:6px;
-    opacity:0;transition:opacity .12s;
+    opacity:0;transition:opacity .12s;align-items:center;
   }
   .bubble-row:hover .bubble-toolbar{opacity:1;}
-  .bubble-toolbar button{
+  .bubble-toolbar button, .bubble-toolbar select{
     font-size:11px;font-weight:600;color:var(--ink-soft);
     background:var(--surface-alt);border:1px solid var(--line);
     border-radius:7px;padding:4px 9px;display:inline-flex;align-items:center;gap:4px;
+    outline:none;cursor:pointer;
   }
-  .bubble-toolbar button:hover{background:var(--line-soft);color:var(--ink);}
+  .bubble-toolbar button:hover, .bubble-toolbar select:hover{background:var(--line-soft);color:var(--ink);}
   .bubble-toolbar button.danger:hover{color:var(--shopee-deep);border-color:var(--shopee-soft);}
+  .bubble-toolbar select { padding-right:16px; }
 
   .compose-actions{
     display:flex;gap:10px;justify-content:center;margin-top:28px;
     padding-top:20px;border-top:1px dashed var(--line);
   }
 
-  /* ---------- Toast ---------- */
+  /* ---- Logistics calculator ---- */
+  .calc-plans{display:flex;flex-direction:column;gap:10px;}
+  .calc-plan{
+    border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;
+    border-left:4px solid var(--plan-color, var(--ink-faint));
+  }
+  .calc-plan-head{
+    padding:9px 12px 6px;font-size:13px;font-weight:800;color:var(--ink);
+    background:var(--surface-alt);
+  }
+  .calc-plan-area{padding:0 12px 10px;font-size:11px;color:var(--ink-faint);line-height:1.6;}
+  .calc-plan-rows{display:flex;flex-direction:column;gap:6px;padding:0 12px 10px;}
+  .calc-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border:1px solid var(--line);background:var(--surface);
+    border-radius:9px;padding:8px 12px;font-size:12.5px;color:var(--ink-soft);
+    font-weight:600;text-align:left;transition:all .12s;
+  }
+  .calc-row:hover{border-color:var(--ink-faint);}
+  .calc-row .calc-result{font-weight:800;color:var(--ink);}
+  .calc-row.active{background:var(--shopee-soft);border-color:var(--shopee);color:var(--shopee-deep);}
+  .calc-row.active .calc-result{color:var(--shopee-deep);}
+  .calc-date-field{margin-top:16px;}
+
+  /* ---------- Toast & Modal ---------- */
   #toast-wrap{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;align-items:center;}
   .toast{
     background:var(--ink);color:#fff;font-size:13px;font-weight:600;
@@ -390,7 +398,6 @@
   .toast .icon{width:15px;height:15px;stroke:#fff;}
   @keyframes toast-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
-  /* ---------- Modal ---------- */
   .modal-overlay{
     position:fixed;inset:0;background:rgba(28,29,33,.45);
     display:flex;align-items:center;justify-content:center;z-index:90;
@@ -408,7 +415,7 @@
   .modal-head h3{margin:0;font-size:15.5px;font-weight:800;}
   .modal-body{padding:20px 22px;display:flex;flex-direction:column;gap:14px;}
   .field label{font-size:12px;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:6px;}
-  .field select,.field input[type=text],.field textarea{
+  .field select,.field input[type=text],.field textarea, .field input[type=date]{
     width:100%;border:1px solid var(--line);border-radius:10px;
     padding:9px 12px;font-size:13.5px;outline:none;color:var(--ink);
     background:var(--surface-alt);
@@ -462,7 +469,7 @@
       <button class="mode-tab" data-mode="browse">🔍 瀏覽全部話術</button>
     </div>
 
-    <!-- 組合精靈:依步驟按鈕組出回覆 -->
+    <!-- 組合精靈 -->
     <div class="mode-panel" id="wizardPanel">
       <div class="wiz-step" style="border-bottom:1px solid var(--line);background:var(--surface-alt);">
         <div class="wiz-step-head">這通是售前還是售後?</div>
@@ -492,7 +499,7 @@
       </div>
     </div>
 
-    <!-- 瀏覽全部:搜尋 + 篩選 + 管理話術 -->
+    <!-- 瀏覽全部 -->
     <div class="mode-panel" id="browsePanel" style="display:none;">
       <div class="filter-block">
         <p class="filter-label">依對話階段</p>
@@ -515,10 +522,9 @@
   <!-- MAIN -->
   <main class="main">
     <div class="quickbar">
-      <div class="quick-field">
-        <label>📦 訂單編號</label>
-        <input type="text" data-var="訂單編號" id="qOrderNo" placeholder="貼上這位客人的訂單編號,套用到所有話術">
-      </div>
+      <!-- 移除了原本固定的訂單編號，改為動態全域參數管理 -->
+      <button class="btn btn-ghost btn-sm" id="btnManageVars">⚙️ 管理常設參數</button>
+      <div style="flex:1;"></div>
       <button class="btn btn-ghost btn-sm" id="btnCalc">🚚 物流到貨試算</button>
     </div>
     <div class="var-bar is-empty" id="varBar"></div>
@@ -545,7 +551,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-/* ============ Icons ============ */
 const ICONS = {
   plus:'<path d="M12 5v14M5 12h14"/>',
   copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
@@ -561,7 +566,6 @@ const ICONS = {
 };
 function icon(name, extra=''){ return `<svg class="icon" ${extra} viewBox="0 0 24 24">${ICONS[name]}</svg>`; }
 
-/* ============ Custom Confirm Dialog ============ */
 function customConfirm(msg, onConfirm) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -583,10 +587,9 @@ function customConfirm(msg, onConfirm) {
   };
 }
 
-/* ============ Labels ============ */
 const STAGE_LABEL = {open:'開頭問候', wait:'查詢中／需要時間', body:'中段回覆', close:'結尾／滿意度'};
 const STAGE_LABEL_SHORT = {open:'開頭', wait:'查詢中', body:'中段', close:'結尾'};
-const CATEGORY_STORAGE_KEY = 'categories_v1';
+const CATEGORY_STORAGE_KEY = 'categories_v2';
 const SEED_CATEGORIES = [
   {id:'logistics', label:'物流', emoji:'🚚'},
   {id:'return', label:'退換貨', emoji:'📦'},
@@ -611,13 +614,12 @@ async function loadCategories(){
 }
 async function saveCategories(list){
   try{ localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(list)); }
-  catch(e){ console.error('儲存類型失敗', e); showToast('儲存失敗,請稍後再試', true); }
+  catch(e){ console.error('儲存類型失敗', e); }
 }
 
-/* ============ Seed data ============ */
 const SEED_TEMPLATES = [
   {id:'s1', stage:'open', category:null, saleType:'pre', title:'售前開場', content:'您好,我是小幫手[BS],很高興為您服務!請問想詢問什麼呢?'},
-  {id:'s2', stage:'open', category:null, saleType:'post', title:'售後開場(客人已提供訂單編號)', content:'{客人名字} 您好,已收到您的訂單編號 {訂單編號},小幫手正在為您查詢中,請您稍等一下喔!'},
+  {id:'s2', stage:'open', category:null, saleType:'post', title:'售後開場(客人已提供訂單編號)', content:'親愛的顧客您好,已收到您的訂單編號 {訂單編號},小幫手正在為您查詢中,請您稍等一下喔!'},
   {id:'s20', stage:'open', category:null, saleType:'post', title:'售後開場(客人尚未提供訂單編號)', content:'您好,我是小幫手[BS],為了盡快協助您查詢,麻煩您提供一下訂單編號,小幫手確認後立即為您處理喔!'},
 
   {id:'s3', stage:'wait', category:null, title:'補貨時間無法即時得知', hint:'可以提醒客人到商品頁點擊愛心收藏,上架會第一時間通知。', content:'不好意思,由於小幫手也無法即時知道補貨的相關時間以及補貨的具體安排,建議您可點擊商品頁的愛心,就可掌握最新的商品近況喔![BS]'},
@@ -626,66 +628,81 @@ const SEED_TEMPLATES = [
   {id:'s6', stage:'wait', category:null, title:'需要客人補充資訊才能查', content:'為了能盡快協助您處理,麻煩您提供一下訂單編號 {訂單編號} 以及問題截圖,小幫手確認後會盡快回覆您喔!'},
 
   {id:'s7', stage:'body', category:'logistics', saleType:'post', title:'包裹物流查詢中', content:'親愛的顧客您好,您的訂單 {訂單編號} 目前物流狀態顯示為「{物流狀態}」,若超過預計送達時間 {天數} 天仍未收到,歡迎再次與我們聯繫,小幫手會協助您進一步處理喔!', variants:['親愛的顧客您好,系統顯示您的包裹目前為「{物流狀態}」,預計還需要 {天數} 天送達,請您耐心等候一下喔!']},
-  {id:'s8', stage:'body', category:'logistics', saleType:'post', title:'收件地址填寫錯誤', content:'若訂單尚未出貨,建議您先聯繫賣家協助修改收件地址;若已經出貨,建議直接與物流業者聯繫改址或攔截包裹喔!'},
-  {id:'s9', stage:'body', category:'return', saleType:'post', title:'申請退貨流程說明', hint:'退貨申請入口在:訂單頁面 →「申請退貨/退款」。', content:'親愛的顧客 {客人名字} 您好,退貨申請可至訂單頁面點選「申請退貨/退款」,選擇退貨原因並上傳商品照片,送出後賣家將於期限內審核回覆您喔!'},
-  {id:'s10', stage:'body', category:'return', saleType:'post', title:'退款進度查詢', content:'您的退款申請已受理,款項將於審核通過後 {天數} 個工作天內原路退回,實際入帳時間會依付款方式略有不同,請您耐心等候喔!'},
+  {id:'s8', stage:'body', category:'logistics', saleType:'post', title:'收件地址填寫錯誤', appendWait:true, content:'若訂單尚未出貨,建議您先聯繫賣家協助修改收件地址;若已經出貨,建議直接與物流業者聯繫改址或攔截包裹喔!'},
+  {id:'s9', stage:'body', category:'return', saleType:'post', title:'申請退貨流程說明', hint:'退貨申請入口在:訂單頁面 →「申請退貨/退款」。', content:'親愛的顧客您好,退貨申請可至訂單頁面點選「申請退貨/退款」,選擇退貨原因並上傳商品照片,送出後賣家將於期限內審核回覆您喔!'},
+  {id:'s10', stage:'body', category:'return', saleType:'post', title:'退款進度查詢', appendWait:true, content:'您的退款申請已受理,款項將於審核通過後 {天數} 個工作天內原路退回,實際入帳時間會依付款方式略有不同,請您耐心等候喔!'},
   {id:'s11', stage:'body', category:'payment', saleType:'pre', title:'付款失敗處理', content:'若付款時顯示失敗,建議您先確認卡片額度、有效期限,或改用其他付款方式再試一次;若仍無法成功,歡迎截圖錯誤訊息給小幫手協助查看喔!'},
-  {id:'s12', stage:'body', category:'payment', saleType:'post', title:'重複扣款反映', content:'若發現有重複扣款的狀況,麻煩您提供扣款明細截圖,小幫手會盡快為您確認並協助處理退款事宜喔!'},
+  {id:'s12', stage:'body', category:'payment', saleType:'post', title:'重複扣款反映', appendWait:true, content:'若發現有重複扣款的狀況,麻煩您提供扣款明細截圖,小幫手會盡快為您確認並協助處理退款事宜喔!'},
   {id:'s13', stage:'body', category:'product', saleType:'pre', title:'商品庫存/補貨查詢', hint:'可以提醒客人到商品頁點擊愛心收藏,上架會第一時間通知。', content:'目前商品頁顯示的庫存為即時狀態,若顯示缺貨,建議您點擊商品頁的愛心收藏,上架通知會第一時間提醒您喔!'},
   {id:'s14', stage:'body', category:'product', saleType:'pre', title:'商品規格詢問', content:'商品的詳細規格、顏色及尺寸資訊都會標示在商品頁的說明欄位,建議您可以再確認一下,如果還有不清楚的地方歡迎再詢問小幫手喔!'},
-  {id:'s17', stage:'body', category:'other', saleType:'both', title:'需再確認規定的通用回覆', content:'不好意思,您反映的狀況小幫手需要再確認一下相關規定,麻煩您稍等一下,確認後會盡快回覆您喔!'},
+  {id:'s17', stage:'body', category:'other', saleType:'both', title:'需再確認規定的通用回覆', appendWait:true, content:'不好意思,您反映的狀況小幫手需要再確認一下相關規定,麻煩您稍等一下,確認後會盡快回覆您喔!'},
 
   {id:'s18', stage:'close', category:null, saleType:'post', title:'售後完整結尾(含滿意度提醒)', content:'感謝您與我們聯繫!若後續仍需協助,歡迎隨時與我們聊聊,小幫手會在服務時間內儘快回覆您。\n\n由於近期訊息量較多,團隊仍在積極處理中,回覆時間可能較長,感謝您的體諒與耐心等候。\n\n對話結束將進行滿意度調查,希望能獲得您的支持與鼓勵,您的滿意度是我們持續進步的最大動力,非常感謝您的肯定與支持!💗[BS]'},
   {id:'s19', stage:'close', category:null, saleType:'post', title:'售後簡短結尾', content:'感謝您的耐心等候與體諒,若還有其他問題都歡迎隨時與小幫手聯繫喔!祝您購物愉快![BS]'},
   {id:'s21', stage:'close', category:null, saleType:'pre', title:'售前結尾', content:'謝謝您的詢問!如果還有其他想了解的地方,都歡迎隨時再詢問小幫手喔![BS]'}
 ];
 
-const STORAGE_KEY = 'templates_v1';
+const STORAGE_KEY = 'templates_v2';
+const CUSTOM_VARS_KEY = 'custom_vars_v2';
 
-/* ============ Logistics delivery-time table ============ */
-const LOGISTICS_RULES = [
-  { id:'store', label:'店取－最快當日到', color:'#1B3A63',
-    area:'非所有商品及地區適用,實際到貨時間請依系統顯示為準。',
-    rows:[
-      {label:'週一到週日 00:00–09:59 完成付款', result:'當天到', days:0},
-      {label:'週一到週日 10:00–23:59 完成付款', result:'隔天到', days:1}
-    ]},
-  { id:'home_north', label:'宅配－最快隔日到(臺北・新北)', color:'#EE4D2D',
-    area:'可配送範圍:臺北、新北,部分行政區及區域除外,請以系統實際顯示為準。',
-    rows:[
-      {label:'週一到週日 全天完成付款', result:'隔天到', days:1}
-    ]},
-  { id:'home_other', label:'宅配－最快隔日到(桃竹中彰雲嘉南高)', color:'#EE4D2D',
-    area:'可配送範圍:桃園、新竹、臺中、彰化、雲林、嘉義、臺南、高雄,部分行政區及區域除外,請以系統實際顯示為準。',
-    rows:[
-      {label:'週一到週日 00:00–09:59 完成付款', result:'隔天到', days:1},
-      {label:'週一到週日 10:00–23:59 完成付款', result:'後天到', days:2}
-    ]},
-  { id:'home_general', label:'宅配', color:'#1B3A63',
-    area:'非所有商品及地區適用,實際到貨時間請依物流通知為準。',
-    rows:[
-      {label:'週一到週日 全天完成付款', result:'依系統顯示為準', days:null}
-    ]}
-];
-let calcSelection = null; // {planId, rowIdx}
+let templates = [];
+let composeList = []; 
+let varsValues = {};
+let customVars = ['訂單編號']; 
+let activeStage = 'all';
+let activeCategory = 'all';
+let searchTerm = '';
+let editingId = null;
+
+let calcSelection = null; 
 let wizActiveCat = null;
 let wizSaleType = 'post';
 let sidebarMode = 'wizard';
 const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
 const SINGLE_STAGES = new Set(['open','wait','close']);
 
-/* ============ Excel import ============ */
+async function loadTemplates(){
+  try{
+    const res = localStorage.getItem(STORAGE_KEY);
+    if(res){
+      const parsed = JSON.parse(res);
+      if(Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  }catch(e){ console.error(e); }
+  await saveTemplates(SEED_TEMPLATES);
+  return SEED_TEMPLATES.slice();
+}
+async function saveTemplates(list){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+  catch(e){ console.error('儲存失敗', e); showToast('儲存失敗,請稍後再試', true); }
+}
+function loadCustomVars(){
+  try{
+    const res = localStorage.getItem(CUSTOM_VARS_KEY);
+    if(res) {
+      const parsed = JSON.parse(res);
+      if(Array.isArray(parsed)) return parsed;
+    }
+  }catch(e){}
+  return ['訂單編號'];
+}
+function saveCustomVars(list){
+  customVars = list;
+  try{ localStorage.setItem(CUSTOM_VARS_KEY, JSON.stringify(list)); }catch(e){}
+}
+
 const IMPORT_HEADER_ALIASES = {
   stage:['階段','stage','對話階段'],
   category:['類型','分類','問題類型','category'],
   saletype:['售前售後','售前/售後','情境','saletype'],
   title:['標題','title','名稱'],
-  content:['內容','回覆','話術','content'],
-  variants:['其他回覆方式','其他版本','變體','variants'],
+  content:['內容','回覆','回覆內容','第一版','預設回覆','content'],
+  appendWait:['附帶查詢中','加上請稍等','附帶等待話術'],
   hint:['提示','建議動作','動作','hint'],
   link:['連結','link','網址']
 };
-const VARIANT_DELIM = /\n?===\n?/;
+const VARIANT_COL_KEYWORDS = ['其他回覆', '回覆方式', '版本']; 
+
 function stageFromText(s){
   s = (s==null? '' : String(s)).trim();
   if(/開頭/.test(s)) return 'open';
@@ -704,7 +721,9 @@ function saleTypeFromText(s){
 function findCol(rowKeys, aliases){
   return rowKeys.find(k => aliases.some(a => String(k).toLowerCase().includes(a.toLowerCase())));
 }
-/* 依文字比對現有類型;找不到就在 workingCats 裡建立一個新的,讓匯入過程可以自動新增大項 */
+function findVariantCols(rowKeys){
+  return rowKeys.filter(k => VARIANT_COL_KEYWORDS.some(kw => String(k).toLowerCase().includes(kw)));
+}
 function resolveCategory(text, workingCats){
   const label = (text==null? '' : String(text)).trim();
   if(!label) return null;
@@ -722,18 +741,21 @@ function importFromRows(rows){
     saletype: findCol(keys, IMPORT_HEADER_ALIASES.saletype),
     title: findCol(keys, IMPORT_HEADER_ALIASES.title),
     content: findCol(keys, IMPORT_HEADER_ALIASES.content),
-    variants: findCol(keys, IMPORT_HEADER_ALIASES.variants),
+    appendWait: findCol(keys, IMPORT_HEADER_ALIASES.appendWait),
     hint: findCol(keys, IMPORT_HEADER_ALIASES.hint),
     link: findCol(keys, IMPORT_HEADER_ALIASES.link)
   };
+  const variantCols = findVariantCols(keys);
+  
   if(!col.title || !col.content){
     return {error:'找不到「標題」或「回覆內容」欄位,請確認 Excel 欄位名稱,或先下載範本參考格式。'};
   }
   const workingCats = categories.map(c=>({...c}));
   const valid = []; let skipped = 0;
+  
   rows.forEach((r,i)=>{
     const title = String(r[col.title] ?? '').trim();
-    const content = String(r[col.content] ?? '').trim();
+    let content = String(r[col.content] ?? '').trim();
     if(!title || !content){ skipped++; return; }
     const stage = (col.stage ? stageFromText(r[col.stage]) : null) || 'body';
     let category = null;
@@ -747,12 +769,30 @@ function importFromRows(rows){
       const raw = col.saletype ? saleTypeFromText(r[col.saletype]) : null;
       saleType = raw || (stage==='body' ? 'both' : 'post');
     }
-    const variantsRaw = col.variants ? String(r[col.variants] ?? '').trim() : '';
-    const variants = variantsRaw ? variantsRaw.split(VARIANT_DELIM).map(v=>v.trim()).filter(Boolean) : [];
+    
+    let variants = [];
+    variantCols.forEach(vc => {
+      const vText = String(r[vc] ?? '').trim();
+      if(vText) {
+        const splitted = vText.split(/\n?===\n?/).map(v=>v.trim()).filter(Boolean);
+        variants.push(...splitted);
+      }
+    });
+
+    const appendWaitText = col.appendWait ? String(r[col.appendWait] ?? '').trim() : '';
+    const appendWait = stage==='body' && /是|Y|True|1/i.test(appendWaitText);
+    
     const hint = col.hint ? String(r[col.hint] ?? '').trim() : '';
     const link = col.link ? String(r[col.link] ?? '').trim() : '';
-    valid.push({id:'x'+Date.now()+'_'+i+Math.random().toString(36).slice(2,5), stage, category, saleType, title, content, variants, hint: hint || undefined, link: link || undefined});
+    
+    valid.push({
+      id:'x'+Date.now()+'_'+i+Math.random().toString(36).slice(2,5), 
+      stage, category, saleType, title, content, variants, 
+      appendWait: appendWait || undefined,
+      hint: hint || undefined, link: link || undefined
+    });
   });
+  
   const existingIds = new Set(categories.map(c=>c.id));
   const newCategories = workingCats.filter(c=>!existingIds.has(c.id));
   return {valid, skipped, newCategories};
@@ -803,20 +843,31 @@ function openImportConfirmModal(result, filename){
     showToast(`已匯入 ${result.valid.length} 則話術`);
   };
 }
+
 function exportCurrentTemplates(){
   if(typeof XLSX==='undefined'){ showToast('匯出功能載入中,請稍後再試一次', true); return; }
   if(!templates.length){ showToast('目前沒有話術可以匯出', true); return; }
+  
+  let maxVariants = 0;
+  templates.forEach(t=>{ if(t.variants && t.variants.length > maxVariants) maxVariants = t.variants.length; });
+  
   const saleTypeLabel = {pre:'售前', post:'售後', both:'皆可'};
-  const rows = templates.map(t=>({
-    '階段': STAGE_LABEL_SHORT[t.stage] || t.stage,
-    '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
-    '類型': t.category ? catLabel(t.category) : '',
-    '標題': t.title,
-    '回覆內容': t.content,
-    '其他回覆方式': (t.variants && t.variants.length) ? t.variants.join('\n===\n') : '',
-    '提示': t.hint || '',
-    '參考連結': t.link || ''
-  }));
+  const rows = templates.map(t=>{
+    const row = {
+      '階段': STAGE_LABEL_SHORT[t.stage] || t.stage,
+      '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
+      '類型': t.category ? catLabel(t.category) : '',
+      '標題': t.title,
+      '回覆內容': t.content,
+      '附帶查詢中': t.appendWait ? '是' : '否'
+    };
+    for(let i=0; i<maxVariants; i++){
+      row[`回覆方式${i+2}`] = (t.variants && t.variants[i]) ? t.variants[i] : '';
+    }
+    row['提示'] = t.hint || '';
+    row['參考連結'] = t.link || '';
+    return row;
+  });
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '話術清單');
@@ -824,33 +875,6 @@ function exportCurrentTemplates(){
   XLSX.writeFile(wb, `客服話術匯出_${dateStr}.xlsx`);
 }
 
-/* ============ State ============ */
-let templates = [];
-let composeList = []; // [{instId, tplId}]
-let varsValues = {};
-let activeStage = 'all';
-let activeCategory = 'all';
-let searchTerm = '';
-let editingId = null;
-
-/* ============ Storage ============ */
-async function loadTemplates(){
-  try{
-    const res = localStorage.getItem(STORAGE_KEY);
-    if(res){
-      const parsed = JSON.parse(res);
-      if(Array.isArray(parsed) && parsed.length) return parsed;
-    }
-  }catch(e){ console.error(e); }
-  await saveTemplates(SEED_TEMPLATES);
-  return SEED_TEMPLATES.slice();
-}
-async function saveTemplates(list){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
-  catch(e){ console.error('儲存失敗', e); showToast('儲存失敗,請稍後再試', true); }
-}
-
-/* ============ Utils ============ */
 function escapeHtml(str){
   return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -897,7 +921,6 @@ async function copyText(text){
   }
 }
 
-/* ============ Mode tabs (wizard / browse) ============ */
 function setSidebarMode(mode){
   sidebarMode = mode;
   document.querySelectorAll('.mode-tab').forEach(b=> b.classList.toggle('active', b.dataset.mode===mode));
@@ -930,25 +953,41 @@ function renderActionHints(){
     </div>`).join('');
 }
 
-/* ============ Wizard (guided step buttons) ============ */
 function wizButtonsHtml(list){
   if(!list.length) return `<span class="empty-note">這個分類還沒有話術,可以到「瀏覽全部話術」新增一則</span>`;
   return list.map(t=>{
     const isActive = SINGLE_STAGES.has(t.stage) && composeList.some(c=>c.tplId===t.id);
-    return `<button type="button" class="wiz-btn ${isActive?'active':''}" data-tpl="${t.id}">${escapeHtml(t.title)}</button>`;
+    const variantsCount = (t.variants || []).length + 1;
+    let selHtml = '';
+    if (variantsCount > 1) {
+      const opts = Array.from({length: variantsCount}).map((_, i) => `<option value="${i}">版本 ${i+1}</option>`).join('');
+      selHtml = `<select class="wiz-variant-sel" title="選擇回覆版本">${opts}</select>`;
+    }
+    return `
+      <div class="wiz-btn-group">
+        <button type="button" class="wiz-btn ${isActive?'active':''}" data-tpl="${t.id}">${escapeHtml(t.title)}</button>
+        ${selHtml}
+      </div>`;
   }).join('');
+}
+function attachWizEvents(container){
+  container.querySelectorAll('[data-tpl]').forEach(b=> {
+    b.onclick = ()=> {
+      const sel = b.parentElement.querySelector('.wiz-variant-sel');
+      const vIdx = sel ? parseInt(sel.value) : 0;
+      insertTemplate(b.dataset.tpl, vIdx);
+    };
+  });
 }
 function renderWizard(){
   document.getElementById('saleTypePre').classList.toggle('active', wizSaleType==='pre');
   document.getElementById('saleTypePost').classList.toggle('active', wizSaleType==='post');
 
-  // Step 1: 開頭(依售前/售後篩選;沒設定售前售後的自訂話術一律歸類為售後)
   const openList = templates.filter(t=>t.stage==='open' && (t.saleType||'post')===wizSaleType);
   const wizOpen = document.getElementById('wizOpen');
   wizOpen.innerHTML = wizButtonsHtml(openList);
-  wizOpen.querySelectorAll('[data-tpl]').forEach(b=> b.onclick = ()=> insertTemplate(b.dataset.tpl));
+  attachWizEvents(wizOpen);
 
-  // Step 2: 中段 — 大類型
   const catWrap = document.getElementById('wizBodyCat');
   catWrap.innerHTML = categories.map(c=>
     `<button type="button" class="wiz-chip ${wizActiveCat===c.id?'active':''}" data-cat="${c.id}">${c.emoji} ${escapeHtml(c.label)}</button>`
@@ -960,17 +999,15 @@ function renderWizard(){
   if(manageBtn) manageBtn.onclick = openCategoryModal;
   renderWizardBodySub();
 
-  // Step 3: 需要花時間查詢
   const waitList = templates.filter(t=>t.stage==='wait');
   const wizWait = document.getElementById('wizWait');
   wizWait.innerHTML = wizButtonsHtml(waitList);
-  wizWait.querySelectorAll('[data-tpl]').forEach(b=> b.onclick = ()=> insertTemplate(b.dataset.tpl));
+  attachWizEvents(wizWait);
 
-  // Step 4: 結尾(依售前/售後篩選)
   const closeList = templates.filter(t=>t.stage==='close' && (t.saleType||'post')===wizSaleType);
   const wizClose = document.getElementById('wizClose');
   wizClose.innerHTML = wizButtonsHtml(closeList);
-  wizClose.querySelectorAll('[data-tpl]').forEach(b=> b.onclick = ()=> insertTemplate(b.dataset.tpl));
+  attachWizEvents(wizClose);
 }
 function renderWizardBodySub(){
   const subWrap = document.getElementById('wizBodySub');
@@ -983,10 +1020,9 @@ function renderWizardBodySub(){
     return st==='both' || st===wizSaleType;
   });
   subWrap.innerHTML = wizButtonsHtml(list);
-  subWrap.querySelectorAll('[data-tpl]').forEach(b=> b.onclick = ()=> insertTemplate(b.dataset.tpl));
+  attachWizEvents(subWrap);
 }
 
-/* ============ Rendering: filters ============ */
 function renderStageChips(){
   const stages = ['all','open','body','wait','close'];
   const wrap = document.getElementById('stageChips');
@@ -1014,7 +1050,6 @@ function renderCategoryChips(){
   if(manageBtn2) manageBtn2.onclick = openCategoryModal;
 }
 
-/* ============ Rendering: list ============ */
 function filteredTemplates(){
   return templates.filter(t=>{
     if(activeStage!=='all' && t.stage!==activeStage) return false;
@@ -1036,7 +1071,16 @@ function renderList(){
   wrap.innerHTML = list.map(t=>{
     const badges = [`<span class="badge badge-${t.stage}">${STAGE_LABEL_SHORT[t.stage]}</span>`];
     if(t.category) badges.push(`<span class="badge badge-cat">${catLabel(t.category)}</span>`);
-    if(t.variants && t.variants.length) badges.push(`<span class="badge badge-cat">🔀 ${t.variants.length+1} 個版本</span>`);
+    if(t.appendWait) badges.push(`<span class="badge badge-appwait">附帶查詢中</span>`);
+    const variantsCount = (t.variants || []).length + 1;
+    if(variantsCount > 1) badges.push(`<span class="badge badge-cat">🔀 ${variantsCount} 個版本</span>`);
+    
+    let selHtml = '';
+    if(variantsCount > 1){
+      const opts = Array.from({length: variantsCount}).map((_, i) => `<option value="${i}">版本 ${i+1}</option>`).join('');
+      selHtml = `<select class="list-variant-sel">${opts}</select>`;
+    }
+
     return `
     <div class="tpl-card" data-id="${t.id}">
       <div class="tpl-card-top">
@@ -1049,6 +1093,7 @@ function renderList(){
       <p class="tpl-title">${escapeHtml(t.title)} ${linkTag(t)}</p>
       <p class="tpl-preview">${escapeHtml(t.content)}</p>
       <div class="tpl-actions">
+        ${selHtml}
         <button class="btn btn-primary btn-sm" data-act="insert">${icon('plus',' style="stroke:#fff;width:13px;height:13px"')} 加入回覆</button>
       </div>
     </div>`;
@@ -1056,15 +1101,18 @@ function renderList(){
 
   wrap.querySelectorAll('.tpl-card').forEach(card=>{
     const id = card.dataset.id;
-    card.querySelector('[data-act=insert]').onclick = ()=> insertTemplate(id);
+    card.querySelector('[data-act=insert]').onclick = ()=> {
+      const sel = card.querySelector('.list-variant-sel');
+      insertTemplate(id, sel ? parseInt(sel.value) : 0);
+    };
     card.querySelector('[data-act=edit]').onclick = ()=> openModal(id);
     card.querySelector('[data-act=del]').onclick = ()=> deleteTemplate(id);
   });
 }
 
-/* ============ Compose ============ */
 function genInstId(){ return 'i'+Date.now()+Math.random().toString(36).slice(2,6); }
-function insertTemplate(tplId){
+
+function insertTemplate(tplId, variantIndex = 0, autoAppended = false){
   const t = templates.find(x=>x.id===tplId);
   if(!t) return;
   if(SINGLE_STAGES.has(t.stage)){
@@ -1078,10 +1126,25 @@ function insertTemplate(tplId){
     const ct = templates.find(x=>x.id===composeList[i].tplId);
     if(ct && STAGE_ORDER[ct.stage] > STAGE_ORDER[t.stage]){ idx = i; break; }
   }
-  composeList.splice(idx, 0, {instId:genInstId(), tplId, variantIndex:0});
+  composeList.splice(idx, 0, {instId:genInstId(), tplId, variantIndex});
+  
+  if(!autoAppended && t.stage === 'body' && t.appendWait) {
+    const hasWait = composeList.some(c => templates.find(x => x.id === c.tplId)?.stage === 'wait');
+    if (!hasWait) {
+      const waitTpl = templates.find(x => x.stage === 'wait'); 
+      if (waitTpl) {
+        insertTemplate(waitTpl.id, 0, true);
+        showToast('已加入並自動附帶查詢中話術');
+      }
+    } else {
+      showToast('已加入回覆 (已有查詢中話術)');
+    }
+  } else if(!autoAppended) {
+    showToast('已加入回覆');
+  }
+
   renderCompose();
   renderWizard();
-  showToast('已加入回覆');
 }
 function removeInst(instId){ composeList = composeList.filter(c=>c.instId!==instId); renderCompose(); renderWizard(); }
 function moveInst(instId, dir){
@@ -1091,15 +1154,13 @@ function moveInst(instId, dir){
   [composeList[idx], composeList[newIdx]] = [composeList[newIdx], composeList[idx]];
   renderCompose();
 }
-function cycleVariant(instId){
+function setVariant(instId, variantIndex){
   const c = composeList.find(x=>x.instId===instId);
   if(!c) return;
-  const t = templates.find(x=>x.id===c.tplId);
-  if(!t) return;
-  const arr = allVariants(t);
-  c.variantIndex = (c.variantIndex + 1) % arr.length;
+  c.variantIndex = variantIndex;
   renderBubblesOnly();
 }
+
 function currentVars(){
   const all = [];
   composeList.forEach(c=>{
@@ -1110,15 +1171,18 @@ function currentVars(){
 }
 
 function renderVarBar(){
-  const vars = currentVars();
+  const autoVars = currentVars();
+  const allVars = [...new Set([...customVars, ...autoVars])];
   const bar = document.getElementById('varBar');
-  if(!vars.length){ bar.classList.add('is-empty'); bar.innerHTML=''; return; }
+  
+  if(!allVars.length){ bar.classList.add('is-empty'); bar.innerHTML=''; return; }
   bar.classList.remove('is-empty');
-  bar.innerHTML = `<span class="var-bar-label">填入變數</span>` + vars.map(v=>`
+  bar.innerHTML = `<span class="var-bar-label">填入變數</span>` + allVars.map(v=>`
     <div class="var-field">
       <label>${escapeHtml(v)}</label>
       <input type="text" data-var="${escapeHtml(v)}" value="${escapeHtml(varsValues[v]||'')}" placeholder="輸入內容">
     </div>`).join('');
+    
   bar.querySelectorAll('input').forEach(inp=>{
     inp.oninput = ()=>{ varsValues[inp.dataset.var] = inp.value; syncVarInputs(); };
   });
@@ -1130,6 +1194,7 @@ function syncVarInputs(){
   });
   renderBubblesOnly();
 }
+
 function renderCompose(){
   renderVarBar();
   renderActionHints();
@@ -1146,6 +1211,13 @@ function renderCompose(){
     if(!t) return '';
     const variants = allVariants(t);
     const vi = c.variantIndex || 0;
+    
+    let variantSel = '';
+    if(variants.length > 1){
+      const opts = variants.map((_, i) => `<option value="${i}" ${i===vi?'selected':''}>切換版本 ${i+1}/${variants.length}</option>`).join('');
+      variantSel = `<select data-act="change-variant" data-inst="${c.instId}">${opts}</select>`;
+    }
+    
     return `
     <div class="bubble-row" data-inst="${c.instId}">
       <div class="avatar">${icon('store')}</div>
@@ -1156,9 +1228,9 @@ function renderCompose(){
         </div>
         <div class="bubble-box" data-content>${fillHtml(instanceText(t, vi))}</div>
         <div class="bubble-toolbar">
-          <button data-act="up">${icon('up')}上移</button>
-          <button data-act="down">${icon('down')}下移</button>
-          ${variants.length>1 ? `<button data-act="swap">🔀 換個說法</button>` : ''}
+          <button data-act="up" title="上移">${icon('up')}</button>
+          <button data-act="down" title="下移">${icon('down')}</button>
+          ${variantSel}
           <button data-act="copy">${icon('copy')}複製這段</button>
           <button data-act="del" class="danger">${icon('x')}移除</button>
         </div>
@@ -1171,8 +1243,10 @@ function renderCompose(){
     row.querySelector('[data-act=up]').onclick = ()=> moveInst(instId,-1);
     row.querySelector('[data-act=down]').onclick = ()=> moveInst(instId,1);
     row.querySelector('[data-act=del]').onclick = ()=> removeInst(instId);
-    const swapBtn = row.querySelector('[data-act=swap]');
-    if(swapBtn) swapBtn.onclick = ()=> cycleVariant(instId);
+    
+    const sel = row.querySelector('[data-act=change-variant]');
+    if(sel) sel.onchange = (e)=> setVariant(instId, parseInt(e.target.value));
+    
     row.querySelector('[data-act=copy]').onclick = async ()=>{
       const c = composeList.find(x=>x.instId===instId);
       const t = templates.find(x=>x.id===c.tplId);
@@ -1197,10 +1271,9 @@ function renderBubblesOnly(){
   });
 }
 
-/* ============ Modal (add/edit) ============ */
 function openModal(id=null){
   editingId = id;
-  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,saleType:'both',title:'',content:'',variants:[]};
+  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,saleType:'both',title:'',content:'',variants:[], appendWait:false};
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -1236,16 +1309,22 @@ function openModal(id=null){
           <label>標題</label>
           <input type="text" id="mTitle" value="${escapeHtml(t.title||'')}" placeholder="例如:包裹物流查詢中">
         </div>
-        <div class="field">
-          <label>回覆內容</label>
-          <textarea id="mContent" placeholder="輸入話術內容…">${escapeHtml(t.content||'')}</textarea>
-          <p class="field-hint">用 {變數名稱} 標記需要填空的地方,例如 {客人名字}、{訂單編號},複製前會出現輸入框讓你填寫。</p>
+        <div class="field" id="mAppendWaitWrap" style="display:${t.stage==='body'?'block':'none'}">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;">
+            <input type="checkbox" id="mAppendWait" style="width:auto;" ${t.appendWait?'checked':''}>
+            加入時自動附帶「查詢中請稍等」的等待話術
+          </label>
         </div>
         <div class="field">
-          <label>其他回覆方式(選填,同一個小項目的不同講法)</label>
+          <label>回覆內容 (預設版本)</label>
+          <textarea id="mContent" placeholder="輸入話術內容…">${escapeHtml(t.content||'')}</textarea>
+          <p class="field-hint">用 {變數名稱} 標記需要填空的地方,例如 {訂單編號}、{物流狀態},複製前會出現輸入框讓你填寫。</p>
+        </div>
+        <div class="field">
+          <label>其他版本回覆方式 (選填)</label>
           <div id="mVariantList" style="display:flex;flex-direction:column;gap:8px;"></div>
-          <button type="button" class="btn btn-ghost btn-sm" id="mAddVariant" style="margin-top:8px;">${icon('plus',' style="width:12px;height:12px"')} 新增一個說法</button>
-          <p class="field-hint">加入回覆時可以用「🔀 換個說法」在這些版本之間切換。</p>
+          <button type="button" class="btn btn-ghost btn-sm" id="mAddVariant" style="margin-top:8px;">${icon('plus',' style="width:12px;height:12px"')} 新增一個版本</button>
+          <p class="field-hint">加入回覆時可以在這些版本之間指定或切換。</p>
         </div>
         <div class="field">
           <label>建議動作提示(選填)</label>
@@ -1267,9 +1346,11 @@ function openModal(id=null){
   const stageSel = overlay.querySelector('#mStage');
   const catWrap = overlay.querySelector('#mCatWrap');
   const saleWrap = overlay.querySelector('#mSaleWrap');
+  const waitWrap = overlay.querySelector('#mAppendWaitWrap');
   stageSel.onchange = ()=>{
     catWrap.style.display = stageSel.value==='body' ? 'block':'none';
     saleWrap.style.display = (stageSel.value==='open'||stageSel.value==='close'||stageSel.value==='body') ? 'block':'none';
+    waitWrap.style.display = stageSel.value==='body' ? 'block':'none';
   };
 
   let variantDrafts = (t.variants || []).slice();
@@ -1278,7 +1359,7 @@ function openModal(id=null){
     if(!variantDrafts.length){ wrap.innerHTML = ''; return; }
     wrap.innerHTML = variantDrafts.map((v,i)=>`
       <div style="display:flex;gap:6px;align-items:flex-start;">
-        <textarea class="mVariantInput" data-idx="${i}" style="flex:1;min-height:70px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.6;outline:none;">${escapeHtml(v)}</textarea>
+        <textarea class="mVariantInput" data-idx="${i}" placeholder="版本 ${i+2} 的內容" style="flex:1;min-height:70px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.6;outline:none;">${escapeHtml(v)}</textarea>
         <button type="button" class="icon-btn" data-rmv="${i}" title="刪除這個版本">${icon('trash')}</button>
       </div>`).join('');
     wrap.querySelectorAll('[data-rmv]').forEach(btn=>{
@@ -1304,18 +1385,20 @@ function openModal(id=null){
     const stage = overlay.querySelector('#mStage').value;
     const category = stage==='body' ? overlay.querySelector('#mCategory').value : null;
     const saleType = (stage==='open'||stage==='close'||stage==='body') ? overlay.querySelector('#mSaleType').value : null;
+    const appendWait = stage==='body' ? overlay.querySelector('#mAppendWait').checked : false;
     const title = overlay.querySelector('#mTitle').value.trim();
     const content = overlay.querySelector('#mContent').value.trim();
     overlay.querySelectorAll('.mVariantInput').forEach(ta=>{ variantDrafts[Number(ta.dataset.idx)] = ta.value; });
     const variants = variantDrafts.map(v=>v.trim()).filter(Boolean);
     const hint = overlay.querySelector('#mHint').value.trim() || undefined;
     const link = overlay.querySelector('#mLink').value.trim() || undefined;
+    
     if(!title || !content){ showToast('請填寫標題與內容', true); return; }
     if(id){
       const idx = templates.findIndex(x=>x.id===id);
-      templates[idx] = {...templates[idx], stage, category, saleType, title, content, variants, hint, link};
+      templates[idx] = {...templates[idx], stage, category, saleType, title, content, variants, appendWait, hint, link};
     }else{
-      templates.unshift({id:'u'+Date.now(), stage, category, saleType, title, content, variants, hint, link});
+      templates.unshift({id:'u'+Date.now(), stage, category, saleType, title, content, variants, appendWait, hint, link});
     }
     await saveTemplates(templates);
     overlay.remove();
@@ -1324,17 +1407,7 @@ function openModal(id=null){
     showToast(id?'已更新話術':'已新增話術');
   };
 }
-function deleteTemplate(id){
-  customConfirm('確定要刪除這則話術嗎?', () => {
-    templates = templates.filter(t=>t.id!==id);
-    saveTemplates(templates);
-    renderAll();
-    renderCompose();
-    showToast('已刪除');
-  });
-}
 
-/* ============ Category management (問題大類型) ============ */
 function openCategoryModal(){
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -1375,15 +1448,9 @@ function openCategoryModal(){
         <button type="button" class="icon-btn" data-del="${c.id}" title="刪除">${icon('trash')}</button>
       </div>`;
     }).join('');
-    listEl.querySelectorAll('[data-del]').forEach(btn=>{
-      btn.onclick = ()=> deleteCategory(btn.dataset.del, renderCtList);
-    });
-    listEl.querySelectorAll('[data-up]').forEach(btn=>{
-      btn.onclick = ()=> moveCategory(btn.dataset.up, -1, renderCtList);
-    });
-    listEl.querySelectorAll('[data-down]').forEach(btn=>{
-      btn.onclick = ()=> moveCategory(btn.dataset.down, 1, renderCtList);
-    });
+    listEl.querySelectorAll('[data-del]').forEach(btn=>{ btn.onclick = ()=> deleteCategory(btn.dataset.del, renderCtList); });
+    listEl.querySelectorAll('[data-up]').forEach(btn=>{ btn.onclick = ()=> moveCategory(btn.dataset.up, -1, renderCtList); });
+    listEl.querySelectorAll('[data-down]').forEach(btn=>{ btn.onclick = ()=> moveCategory(btn.dataset.down, 1, renderCtList); });
   }
   renderCtList();
 
@@ -1403,6 +1470,7 @@ function openCategoryModal(){
   overlay.querySelector('#ctDone').onclick = ()=>{ overlay.remove(); renderAll(); };
   overlay.onclick = (e)=>{ if(e.target===overlay){ overlay.remove(); renderAll(); } };
 }
+
 function moveCategory(catId, dir, after){
   const idx = categories.findIndex(c=>c.id===catId);
   const newIdx = idx + dir;
@@ -1437,165 +1505,182 @@ function deleteCategory(catId, afterDelete){
   });
 }
 
-/* ============ Logistics calculator modal ============ */
-function openCalcModal(){
-  calcSelection = null;
+function openVarsModal(){
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
-    <div class="modal" style="max-width:560px;">
-      <div class="modal-head">
-        <h3>🚚 物流到貨試算</h3>
-        <button class="icon-btn" id="cClose">${icon('x')}</button>
-      </div>
+    <div class="modal" style="max-width:400px;">
+      <div class="modal-head"><h3>管理常設參數</h3><button class="icon-btn" id="cvClose">${icon('x')}</button></div>
       <div class="modal-body">
-        <p class="field-hint" style="margin:-6px 0 2px;">依蝦皮官方時效表整理,選一個符合的方案與時間,就能自動算出「物流狀態」與「天數」。</p>
-        <div class="calc-plans">
-          ${LOGISTICS_RULES.map(plan=>`
-            <div class="calc-plan" style="--plan-color:${plan.color}">
-              <div class="calc-plan-head">${plan.label}</div>
-              <div class="calc-plan-rows">
-                ${plan.rows.map((row,ri)=>`
-                  <button type="button" class="calc-row" data-plan="${plan.id}" data-row="${ri}">
-                    <span>${row.label}</span>
-                    <span class="calc-result">→ ${row.result}</span>
-                  </button>`).join('')}
-              </div>
-              <div class="calc-plan-area">${plan.area}</div>
-            </div>`).join('')}
-        </div>
-        <div class="field calc-date-field">
-          <label>訂單完成日期(選填,填了會自動推算實際到貨日)</label>
-          <input type="date" id="calcDate">
+        <p class="field-hint" style="margin-top:0;">常設參數會固定出現在變數列的最前方，方便您快速輸入通用資訊（如訂單編號）。</p>
+        <div id="cvList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div class="field-row" style="margin-top:6px;">
+          <div class="field">
+            <input type="text" id="cvNewLabel" placeholder="輸入新的參數名稱，如：小編代號">
+          </div>
+          <button class="btn btn-ghost" id="cvAdd" style="align-self:flex-end;">新增</button>
         </div>
       </div>
       <div class="modal-foot">
-        <button class="btn btn-ghost" id="cCancel">取消</button>
-        <button class="btn btn-primary" id="cApply">${icon('check',' style="stroke:#fff;width:13px;height:13px"')} 帶入變數</button>
+        <button class="btn btn-primary" id="cvDone">完成</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
 
-  overlay.querySelectorAll('.calc-row').forEach(btn=>{
-    btn.onclick = ()=>{
-      overlay.querySelectorAll('.calc-row').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      calcSelection = {planId:btn.dataset.plan, rowIdx:Number(btn.dataset.row)};
-    };
-  });
-  overlay.querySelector('#cClose').onclick = ()=>overlay.remove();
-  overlay.querySelector('#cCancel').onclick = ()=>overlay.remove();
-  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
-
-  overlay.querySelector('#cApply').onclick = ()=>{
-    if(!calcSelection){ showToast('請先選一個物流方案', true); return; }
-    const plan = LOGISTICS_RULES.find(p=>p.id===calcSelection.planId);
-    const row = plan.rows[calcSelection.rowIdx];
-    const dateVal = overlay.querySelector('#calcDate').value;
-
-    let statusText = row.result;
-    if(dateVal && row.days!==null){
-      const d = new Date(dateVal+'T00:00:00');
-      d.setDate(d.getDate()+row.days);
-      const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
-      statusText = `${row.result}(預估 ${dateStr} 送達)`;
+  function renderCvList(){
+    const listEl = overlay.querySelector('#cvList');
+    if(!customVars.length) {
+      listEl.innerHTML = `<span style="font-size:12px;color:var(--ink-faint);">目前沒有常設參數</span>`;
+      return;
     }
-    varsValues['物流狀態'] = statusText;
-    if(row.days!==null) varsValues['天數'] = String(row.days);
+    // 加入了參數在話術中的具體語法提示： 話術中加入: {參數名稱}
+    listEl.innerHTML = customVars.map((v, i)=>`
+      <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:9px;padding:6px 10px;">
+        <div style="flex:1;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;">
+          <span style="font-size:13px;font-weight:700;">${escapeHtml(v)}</span>
+          <span style="font-size:11px;color:var(--ink-faint);font-family:var(--font-mono);">加入話術：{${escapeHtml(v)}}</span>
+        </div>
+        <button type="button" class="icon-btn" data-del="${i}" title="刪除">${icon('trash')}</button>
+      </div>`).join('');
+    
+    listEl.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.onclick = ()=> {
+        customVars.splice(Number(btn.dataset.del), 1);
+        saveCustomVars(customVars);
+        renderCvList();
+        renderVarBar();
+      };
+    });
+  }
+  renderCvList();
 
-    syncVarInputs();
-    overlay.remove();
-    showToast('已帶入物流狀態' + (row.days!==null ? '與天數' : ''));
+  overlay.querySelector('#cvAdd').onclick = ()=>{
+    const label = overlay.querySelector('#cvNewLabel').value.trim();
+    if(!label){ showToast('請輸入參數名稱', true); return; }
+    if(customVars.includes(label)){ showToast('已經有這個參數了', true); return; }
+    
+    customVars.push(label);
+    saveCustomVars(customVars);
+    overlay.querySelector('#cvNewLabel').value = '';
+    renderCvList();
+    renderVarBar();
+    showToast('已新增常設參數');
   };
+  
+  overlay.querySelector('#cvClose').onclick = ()=>{ overlay.remove(); };
+  overlay.querySelector('#cvDone').onclick = ()=>{ overlay.remove(); };
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
 }
 
-/* ============ Boot ============ */
+function deleteTemplate(id){
+  customConfirm('確定要刪除這則話術嗎？', () => {
+    templates = templates.filter(t => t.id !== id);
+    saveTemplates(templates);
+    composeList = composeList.filter(c => c.tplId !== id);
+    renderAll();
+    renderCompose();
+    showToast('已刪除話術');
+  });
+}
+
 function renderAll(){
-  renderWizard();
   renderStageChips();
   renderCategoryChips();
   renderList();
+  renderWizard();
   document.getElementById('statCount').textContent = templates.length;
 }
-async function boot(){
+
+function openCalcModal() {
+  showToast('物流試算功能請至相關系統操作', false);
+}
+
+async function init(){
+  customVars = loadCustomVars();
   categories = await loadCategories();
   templates = await loadTemplates();
-  renderAll();
-  renderCompose();
-  setSidebarMode('wizard');
-  document.querySelectorAll('.mode-tab').forEach(b=>{ b.onclick = ()=> setSidebarMode(b.dataset.mode); });
+  
+  document.getElementById('btnExport').onclick = exportCurrentTemplates;
+  
+  const fileInp = document.getElementById('fileImport');
+  document.getElementById('btnImport').onclick = ()=> fileInp.click();
+  fileInp.onchange = (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (re)=>{
+      try{
+        const data = new Uint8Array(re.target.result);
+        const wb = XLSX.read(data, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws);
+        if(!rows.length) throw new Error('檔案是空的');
+        const result = importFromRows(rows);
+        if(result.error) showToast(result.error, true);
+        else openImportConfirmModal(result, file.name);
+      }catch(err){
+        console.error(err);
+        showToast('讀取 Excel 失敗,請確認格式', true);
+      }
+      fileInp.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  document.getElementById('btnAdd').onclick = ()=> openModal();
+  
+  document.getElementById('btnReset').onclick = ()=>{
+    customConfirm('確定要還原為預設話術嗎？這會清除您所有的自訂內容。', async () => {
+      await saveTemplates(SEED_TEMPLATES);
+      await saveCategories(SEED_CATEGORIES);
+      templates = SEED_TEMPLATES.slice();
+      categories = SEED_CATEGORIES.slice();
+      composeList = [];
+      renderAll();
+      renderCompose();
+      showToast('已還原為預設話術');
+    });
+  };
+
+  document.getElementById('btnClear').onclick = ()=>{
+    composeList = []; renderCompose(); renderWizard();
+  };
+  
+  document.getElementById('btnCopyAll').onclick = async ()=>{
+    if(!composeList.length) return;
+    let fullText = composeList.map(c=>{
+      const t = templates.find(x=>x.id===c.tplId);
+      return fillPlain(instanceText(t, c.variantIndex||0));
+    }).join('\n\n');
+    const hasEmpty = currentVars().some(v=>!(varsValues[v]&&varsValues[v].trim()));
+    const ok = await copyText(fullText);
+    if(ok) showToast(hasEmpty ? '已複製全部,但還有變數未填喔' : '已複製全部回覆', hasEmpty);
+    else showToast('複製失敗', true);
+  };
+
+  document.getElementById('searchInput').oninput = (e)=>{
+    searchTerm = e.target.value;
+    renderList();
+  };
+
+  document.querySelectorAll('.mode-tab').forEach(b=>{
+    b.onclick = ()=> setSidebarMode(b.dataset.mode);
+  });
+
   document.getElementById('saleTypePre').onclick = ()=>{ wizSaleType='pre'; renderWizard(); };
   document.getElementById('saleTypePost').onclick = ()=>{ wizSaleType='post'; renderWizard(); };
 
-  document.getElementById('searchInput').oninput = (e)=>{ searchTerm = e.target.value; renderList(); };
-  document.getElementById('btnExport').onclick = exportCurrentTemplates;
-  document.getElementById('btnImport').onclick = ()=> document.getElementById('fileImport').click();
-  document.getElementById('fileImport').onchange = async (e)=>{
-    const file = e.target.files[0];
-    e.target.value = '';
-    if(!file) return;
-    if(typeof XLSX==='undefined'){ showToast('匯入功能載入失敗,請檢查網路連線後重新整理', true); return; }
-    try{
-      const data = await file.arrayBuffer();
-      const wb = XLSX.read(data, {type:'array'});
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
-      if(!rows.length){ showToast('這個檔案裡沒有讀到資料', true); return; }
-      const result = importFromRows(rows);
-      if(result.error){ showToast(result.error, true); return; }
-      if(!result.valid.length){ showToast('沒有偵測到可匯入的話術,請確認欄位內容', true); return; }
-      openImportConfirmModal(result, file.name);
-    }catch(err){
-      console.error(err);
-      showToast('讀取檔案失敗,請確認是否為 Excel 或 CSV 格式', true);
-    }
-  };
-  document.getElementById('qOrderNo').oninput = (e)=>{ varsValues['訂單編號'] = e.target.value; syncVarInputs(); };
-  document.getElementById('btnCalc').onclick = openCalcModal;
-  document.getElementById('btnAdd').onclick = ()=> openModal(null);
-  document.getElementById('btnClear').onclick = ()=>{ composeList=[]; varsValues={}; renderCompose(); renderWizard(); };
-  document.getElementById('btnReset').onclick = async ()=>{
-    customConfirm('將會清除所有自訂話術與問題類型,還原成預設的內容,確定嗎?', async () => {
-      templates = SEED_TEMPLATES.slice();
-      categories = SEED_CATEGORIES.slice();
-      await saveTemplates(templates);
-      await saveCategories(categories);
-      wizActiveCat = null; activeCategory = 'all';
-      renderAll();
-      renderCompose();
-      showToast('已重置為預設話術');
-    });
-  };
+  document.getElementById('btnManageVars').onclick = openVarsModal;
   
-  // 補齊結尾截斷的複製全部邏輯
-  document.getElementById('btnCopyAll').onclick = async ()=>{
-    if(!composeList.length) return;
-    
-    // 組合所有文字
-    const parts = composeList.map(c => {
-      const t = templates.find(x => x.id === c.tplId);
-      if(!t) return '';
-      const text = instanceText(t, c.variantIndex || 0);
-      return fillPlain(text);
-    }).filter(p => p !== '');
-    
-    const finalText = parts.join('\n\n'); // 使用換行分隔每一段回覆
-    
-    // 檢查是否有未填寫的變數
-    const hasEmpty = currentVars().some(v => !(varsValues[v] && varsValues[v].trim()));
-    
-    // 執行複製
-    const ok = await copyText(finalText);
-    if(ok) {
-      showToast(hasEmpty ? '已複製全部，但還有變數未填喔！' : '已複製全部回覆！', hasEmpty);
-    } else {
-      showToast('複製失敗，請手動選取', true);
-    }
-  };
+  const btnCalc = document.getElementById('btnCalc');
+  if(btnCalc) btnCalc.onclick = openCalcModal;
+
+  renderAll();
+  renderCompose();
 }
 
 // 啟動應用程式
-boot();
+window.onload = init;
 </script>
 </body>
 </html>
