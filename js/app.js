@@ -99,10 +99,12 @@ function catLabel(id){ const c = categories.find(x=>x.id===id); return c ? c.lab
 
 async function loadCategories(){
   try{
-    const res = localStorage.getItem(CATEGORY_STORAGE_KEY) || localStorage.getItem('categories_v2');
-    if(res){
+    const current = localStorage.getItem(CATEGORY_STORAGE_KEY);
+    const res = current !== null ? current : localStorage.getItem('categories_v2');
+    if(res !== null){
       const parsed = JSON.parse(res);
-      if(Array.isArray(parsed) && parsed.length) return parsed;
+      // 空清單也是使用者刻意儲存的資料，不應在更新網頁後被預設內容覆蓋。
+      if(Array.isArray(parsed)) return parsed;
     }
   }catch(e){ console.error(e); }
   await saveCategories(SEED_CATEGORIES);
@@ -117,10 +119,12 @@ async function saveCategories(list){
 
 async function loadTemplates(){
   try{
-    const res = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('templates_v2');
-    if(res){
+    const current = localStorage.getItem(STORAGE_KEY);
+    const res = current !== null ? current : localStorage.getItem('templates_v2');
+    if(res !== null){
       const parsed = JSON.parse(res);
-      if(Array.isArray(parsed) && parsed.length) return parsed;
+      // 只在第一次使用、完全沒有資料時才載入預設話術。
+      if(Array.isArray(parsed)) return parsed;
     }
   }catch(e){ console.error(e); }
   await saveTemplates(SEED_TEMPLATES);
@@ -308,6 +312,116 @@ function openImportConfirmModal(result, filename){
     renderAll();
     renderCompose();
     showToast(`已成功匯入並保存 ${result.valid.length} 則話術！`);
+  };
+}
+
+function templateFingerprint(t){
+  return JSON.stringify([
+    t.stage || '', t.category || '', t.saleType || '', t.title || '', t.content || '',
+    Array.isArray(t.variants) ? t.variants : [], !!t.appendWait, t.hint || '', t.link || ''
+  ]);
+}
+
+function uniqueImportId(existingIds){
+  let id;
+  do { id = 'u' + Date.now() + Math.random().toString(36).slice(2,6); }
+  while(existingIds.has(id));
+  return id;
+}
+
+function mergeJsonBackup(dump){
+  const incomingCategories = Array.isArray(dump.categories) ? dump.categories : [];
+  const incomingTemplates = Array.isArray(dump.templates) ? dump.templates : [];
+  const incomingVars = Array.isArray(dump.customVars) ? dump.customVars : [];
+
+  const nextCategories = categories.map(c=>({...c}));
+  const categoryMap = {};
+  incomingCategories.forEach(c=>{
+    if(!c || !c.id || !c.label) return;
+    const sameLabel = nextCategories.find(x=>x.label===c.label);
+    const sameId = nextCategories.find(x=>x.id===c.id);
+    let target = sameLabel || sameId;
+    if(!target){
+      const id = nextCategories.some(x=>x.id===c.id)
+        ? 'c' + Date.now() + '_' + Math.random().toString(36).slice(2,5)
+        : c.id;
+      target = {...c, id};
+      nextCategories.push(target);
+    }
+    categoryMap[c.id] = target.id;
+  });
+
+  const nextTemplates = templates.map(t=>({...t, variants:Array.isArray(t.variants) ? t.variants.slice() : []}));
+  const known = new Set(nextTemplates.map(templateFingerprint));
+  const ids = new Set(nextTemplates.map(t=>t.id));
+  let added = 0, skipped = 0;
+
+  incomingTemplates.forEach(t=>{
+    if(!t || !t.title || !t.content){ skipped++; return; }
+    const copy = {...t, category:categoryMap[t.category] || t.category, variants:Array.isArray(t.variants) ? t.variants.slice() : []};
+    const fingerprint = templateFingerprint(copy);
+    if(known.has(fingerprint)){ skipped++; return; }
+    if(!copy.id || ids.has(copy.id)) copy.id = uniqueImportId(ids);
+    ids.add(copy.id);
+    known.add(fingerprint);
+    nextTemplates.push(copy);
+    added++;
+  });
+
+  categories = nextCategories;
+  templates = nextTemplates;
+  customVars = [...new Set([...customVars, ...incomingVars.filter(v=>typeof v==='string' && v.trim())])];
+  return {added, skipped};
+}
+
+function openJsonImportConfirmModal(dump, filename){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>匯入 JSON 備份</h3><button class="icon-btn" id="jsonClose">${icon('x')}</button></div>
+      <div class="modal-body">
+        <p class="field-hint" style="margin:0;">「${escapeHtml(filename)}」包含 ${dump.templates.length} 則話術。選擇合併可保留目前的內容。</p>
+        <div class="field">
+          <label>還原方式</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:500;font-size:13px;color:var(--ink);margin-bottom:8px;">
+            <input type="radio" name="jsonMode" value="merge" checked style="width:auto;"> 合併備份內容（建議；相同話術不重複加入）
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:500;font-size:13px;color:var(--ink);">
+            <input type="radio" name="jsonMode" value="replace" style="width:auto;"> 完整覆蓋目前資料
+          </label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="jsonCancel">取消</button>
+        <button class="btn btn-primary" id="jsonConfirm">${icon('check',' style="stroke:#fff;width:13px;height:13px"')} 確認匯入</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = ()=>overlay.remove();
+  overlay.querySelector('#jsonClose').onclick = close;
+  overlay.querySelector('#jsonCancel').onclick = close;
+  overlay.onclick = (e)=>{ if(e.target===overlay) close(); };
+  overlay.querySelector('#jsonConfirm').onclick = async ()=>{
+    const mode = overlay.querySelector('input[name=jsonMode]:checked').value;
+    let message;
+    if(mode==='replace'){
+      templates = dump.templates.map(t=>({...t, variants:Array.isArray(t.variants) ? t.variants.slice() : []}));
+      categories = Array.isArray(dump.categories) ? dump.categories.map(c=>({...c})) : [];
+      customVars = Array.isArray(dump.customVars) ? dump.customVars.slice() : [];
+      message = '已完整還原 JSON 備份';
+    }else{
+      const result = mergeJsonBackup(dump);
+      message = `已合併新增 ${result.added} 則話術${result.skipped ? `，略過 ${result.skipped} 則重複或無效資料` : ''}`;
+    }
+    await saveTemplates(templates);
+    await saveCategories(categories);
+    saveCustomVars(customVars);
+    close();
+    renderAll();
+    renderCompose();
+    showToast(message);
   };
 }
 
@@ -1114,23 +1228,13 @@ async function init(){
     const file = e.target.files[0];
     if(!file) return;
 
-    if(file.name.endsWith('.json')){
+    if(file.name.toLowerCase().endsWith('.json')){
       const reader = new FileReader();
-      reader.onload = async (re)=>{
+      reader.onload = (re)=>{
         try{
           const dump = JSON.parse(re.target.result);
           if(dump.templates && Array.isArray(dump.templates)){
-            templates = dump.templates;
-            if(dump.categories && Array.isArray(dump.categories)) categories = dump.categories;
-            if(dump.customVars && Array.isArray(dump.customVars)) customVars = dump.customVars;
-            
-            await saveTemplates(templates);
-            await saveCategories(categories);
-            saveCustomVars(customVars);
-            
-            renderAll();
-            renderCompose();
-            showToast('已從 JSON 備份完整還原！');
+            openJsonImportConfirmModal(dump, file.name);
           } else {
             showToast('JSON 格式不正確', true);
           }
