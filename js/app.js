@@ -184,6 +184,7 @@ const IMPORT_HEADER_ALIASES = {
   hint:['提示','建議動作','動作','hint'],
   guidanceSteps:['操作步驟','提示步驟','guidanceSteps'],
   guidanceStepLinks:['操作步驟連結','步驟連結','guidanceStepLinks'],
+  guidanceJson:['提示完整資料','guidanceJson'],
   linkLabel:['參考連結名稱','連結名稱','linkLabel'],
   link:['參考連結','連結','link','網址']
 };
@@ -247,6 +248,7 @@ function importFromRows(rows){
     hint: findCol(keys, IMPORT_HEADER_ALIASES.hint),
     guidanceSteps: findCol(keys, IMPORT_HEADER_ALIASES.guidanceSteps),
     guidanceStepLinks: findCol(keys, IMPORT_HEADER_ALIASES.guidanceStepLinks),
+    guidanceJson: findCol(keys, IMPORT_HEADER_ALIASES.guidanceJson),
     linkLabel: findCol(keys, IMPORT_HEADER_ALIASES.linkLabel),
     link: findCol(keys, IMPORT_HEADER_ALIASES.link)
   };
@@ -304,10 +306,20 @@ function importFromRows(rows){
     const stepLinks = col.guidanceStepLinks ? String(r[col.guidanceStepLinks] ?? '').split(/\r?\n/).map(v=>v.trim()) : [];
     const linkSource = col.link ? String(r[col.link] ?? '').trim() : '';
     const linkLabels = col.linkLabel ? String(r[col.linkLabel] ?? '').split(/\r?\n/).map(v=>v.trim()) : [];
-    const guidance = stepSource.split(/\r?\n/).map(text=>text.trim()).filter(Boolean).map((text, idx)=>({type:'step', text, url:stepLinks[idx] || undefined}));
-    linkSource.split(/\r?\n/).map(url=>url.trim()).filter(Boolean).forEach((url, idx)=>{
-      guidance.push({type:'link', label:linkLabels[idx] || '參考連結', url});
-    });
+    let guidance = [];
+    // 匯出檔中的完整資料會保留順序、每一步網址與所有參考連結。
+    if(col.guidanceJson){
+      try{
+        const parsed = JSON.parse(String(r[col.guidanceJson] ?? ''));
+        if(Array.isArray(parsed)) guidance = parsed.filter(item=>item && ((item.type==='step' && item.text) || (item.type==='link' && item.url)));
+      }catch(e){}
+    }
+    if(!guidance.length){
+      guidance = stepSource.split(/\r?\n/).map(text=>text.trim()).filter(Boolean).map((text, idx)=>({type:'step', text, url:stepLinks[idx] || undefined}));
+      linkSource.split(/\r?\n/).map(url=>url.trim()).filter(Boolean).forEach((url, idx)=>{
+        guidance.push({type:'link', label:linkLabels[idx] || '參考連結', url});
+      });
+    }
     const hint = (guidance.find(item=>item.type==='step')||{}).text || '';
     const link = (guidance.find(item=>item.type==='link')||{}).url || '';
     
@@ -494,6 +506,10 @@ function exportCurrentTemplates(){
     const guidance = guidanceFor(t);
     const steps = guidance.filter(item=>item.type==='step');
     const links = guidance.filter(item=>item.type==='link');
+    const fullGuidanceText = guidance.map((item, index)=>{
+      if(item.type==='link') return `${index+1}. 參考連結：${item.label || '參考連結'}｜${item.url}`;
+      return `${index+1}. 步驟：${item.text}${item.url ? '｜'+item.url : ''}`;
+    }).join('\n');
     const row = {
       '階段': STAGE_LABEL_SHORT[t.stage] || t.stage,
       '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
@@ -506,6 +522,8 @@ function exportCurrentTemplates(){
       '操作步驟連結': steps.map(item=>item.url || '').join('\n'),
       '參考連結名稱': links.map(item=>item.label || '參考連結').join('\n'),
       '參考連結': links.map(item=>item.url).join('\n'),
+      '提示內容（完整）': fullGuidanceText,
+      '提示完整資料': JSON.stringify(guidance),
       '附帶查詢中': t.appendWait ? '是' : '否'
     };
     for(let i=0; i<maxVariants; i++){
