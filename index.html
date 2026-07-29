@@ -625,6 +625,8 @@ function customConfirm(msg, onConfirm) {
 const STAGE_LABEL = {open:'開頭問候', wait:'查詢中／需要時間', body:'中段回覆', close:'結尾／滿意度'};
 const STAGE_LABEL_SHORT = {open:'開頭', wait:'查詢中', body:'中段', close:'結尾'};
 
+// Keep these keys stable. GitHub Pages deployments may replace index.html,
+ // but data stored under these keys remains in this browser.
 const STORAGE_KEY = 'helper_script_templates_v3';
 const CATEGORY_STORAGE_KEY = 'helper_script_categories_v3';
 const CUSTOM_VARS_KEY = 'helper_script_custom_vars_v3';
@@ -680,14 +682,22 @@ const SINGLE_STAGES = new Set(['open','wait','close']);
 
 function catLabel(id){ const c = categories.find(x=>x.id===id); return c ? c.label : (id||''); }
 
-async function loadCategories(){
+function loadStoredList(key, legacyKey){
   try{
-    const res = localStorage.getItem(CATEGORY_STORAGE_KEY) || localStorage.getItem('categories_v2');
-    if(res){
-      const parsed = JSON.parse(res);
-      if(Array.isArray(parsed) && parsed.length) return parsed;
-    }
-  }catch(e){ console.error(e); }
+    // An empty array is still deliberate saved data, so do not replace it with seeds.
+    const value = localStorage.getItem(key) ?? localStorage.getItem(legacyKey);
+    if(value === null) return null;
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : null;
+  }catch(e){
+    console.error('讀取本機資料失敗', e);
+    return null;
+  }
+}
+
+async function loadCategories(){
+  const saved = loadStoredList(CATEGORY_STORAGE_KEY, 'categories_v2');
+  if(saved !== null) return saved;
   await saveCategories(SEED_CATEGORIES);
   return SEED_CATEGORIES.slice();
 }
@@ -699,13 +709,8 @@ async function saveCategories(list){
 }
 
 async function loadTemplates(){
-  try{
-    const res = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('templates_v2');
-    if(res){
-      const parsed = JSON.parse(res);
-      if(Array.isArray(parsed) && parsed.length) return parsed;
-    }
-  }catch(e){ console.error(e); }
+  const saved = loadStoredList(STORAGE_KEY, 'templates_v2');
+  if(saved !== null) return saved;
   await saveTemplates(SEED_TEMPLATES);
   return SEED_TEMPLATES.slice();
 }
@@ -737,7 +742,7 @@ function saveCustomVars(list){
 
 function updateSaveBadge(){
   const badge = document.getElementById('saveBadge');
-  if(badge) badge.title = `已有 ${templates.length} 則話術與 ${categories.length} 個分類保存於此瀏覽器中`;
+  if(badge) badge.title = `已有 ${templates.length} 則話術與 ${categories.length} 個分類保存於此瀏覽器中；更新網頁不會覆寫已儲存內容`;
 }
 
 const IMPORT_HEADER_ALIASES = {
