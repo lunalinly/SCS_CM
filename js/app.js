@@ -94,6 +94,7 @@ let editingId = null;
 
 let wizActiveCat = null;
 let wizActiveProblem = null;
+let wizActiveProblemTag = 'all';
 let wizSaleType = 'post';
 let sidebarMode = 'wizard';
 const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
@@ -176,6 +177,7 @@ const IMPORT_HEADER_ALIASES = {
   stage:['階段','stage','對話階段'],
   category:['大類型','類型','分類','問題類型','category'],
   subcategory:['小類型','小分類','子分類','subcategory'],
+  tags:['標籤','tags','tag'],
   saletype:['售前售後','售前/售後','情境','saletype'],
   title:['標題','title','名稱'],
   content:['內容','回覆','回覆內容','第一版','預設回覆','content'],
@@ -240,6 +242,7 @@ function importFromRows(rows){
     stage: findCol(keys, IMPORT_HEADER_ALIASES.stage),
     category: findCol(keys, IMPORT_HEADER_ALIASES.category),
     subcategory: findCol(keys, IMPORT_HEADER_ALIASES.subcategory),
+    tags: findCol(keys, IMPORT_HEADER_ALIASES.tags),
     saletype: findCol(keys, IMPORT_HEADER_ALIASES.saletype),
     title: findCol(keys, IMPORT_HEADER_ALIASES.title),
     content: findCol(keys, IMPORT_HEADER_ALIASES.content),
@@ -276,6 +279,7 @@ function importFromRows(rows){
       category = resolved ? resolved.id : null;
       subcategory = col.subcategory ? String(r[col.subcategory] ?? '').trim() || null : null;
     }
+    const tags = col.tags ? String(r[col.tags] ?? '').split(/[，,、]/).map(v=>v.trim()).filter(Boolean) : [];
     let saleType = null;
     if(stage==='open' || stage==='close' || stage==='body'){
       const raw = col.saletype ? saleTypeFromText(r[col.saletype]) : null;
@@ -325,7 +329,7 @@ function importFromRows(rows){
     
     valid.push({
       id:'x'+Date.now()+'_'+i+Math.random().toString(36).slice(2,5), 
-      stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels,
+      stage, category, subcategory, tags, saleType, title, defaultVariantLabel, content, variants, variantLabels,
       appendWait: appendWait || undefined,
       guidance: guidance.length ? guidance : undefined,
       hint: hint || undefined, link: link || undefined
@@ -385,7 +389,7 @@ function openImportConfirmModal(result, filename){
 
 function templateFingerprint(t){
   return JSON.stringify([
-    t.stage || '', t.category || '', t.subcategory || '', t.saleType || '', t.title || '', t.defaultVariantLabel || '', t.content || '',
+    t.stage || '', t.category || '', t.subcategory || '', Array.isArray(t.tags) ? t.tags : [], t.saleType || '', t.title || '', t.defaultVariantLabel || '', t.content || '',
     Array.isArray(t.variants) ? t.variants : [], Array.isArray(t.variantLabels) ? t.variantLabels : [],
     Array.isArray(t.guidance) ? t.guidance : [], !!t.appendWait, t.hint || '', t.link || ''
   ]);
@@ -515,6 +519,7 @@ function exportCurrentTemplates(){
       '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
       '大類型': t.category ? catLabel(t.category) : '',
       '小類型': t.subcategory || '',
+      '標籤': (t.tags||[]).join('、'),
       '標題': t.title,
       '預設按鍵名稱': t.defaultVariantLabel || '預設回覆',
       '回覆內容': t.content,
@@ -717,6 +722,7 @@ function renderWizard(){
     b.onclick = ()=>{
       wizActiveCat = (wizActiveCat===b.dataset.cat) ? null : b.dataset.cat;
       wizActiveProblem = null;
+      wizActiveProblemTag = 'all';
       renderWizardBodySub();
     };
   });
@@ -735,27 +741,45 @@ function renderWizard(){
   attachWizEvents(wizClose);
 }
 function renderWizardBodySub(){
+  const tagWrap = document.getElementById('wizProblemTagFilters');
+  const tagLabel = document.getElementById('wizProblemTagLabel');
   const problemWrap = document.getElementById('wizSubcategory');
   const problemLabel = document.getElementById('wizSubcategoryLabel');
   const detailWrap = document.getElementById('wizBodySub');
   const detailLabel = document.getElementById('wizBodySubLabel');
   if(!wizActiveCat){
+    tagWrap.innerHTML='';
     problemWrap.innerHTML='';
     detailWrap.innerHTML='';
+    tagLabel.style.display='none';
     problemLabel.style.display='none';
     detailLabel.style.display='none';
     return;
   }
 
-  const problems = templates.filter(t=>{
+  const allProblems = templates.filter(t=>{
     if(t.stage!=='body' || t.category!==wizActiveCat) return false;
     const st = t.saleType || 'both';
     return st==='both' || st===wizSaleType;
   });
+  const tags = [...new Set(allProblems.flatMap(t=>Array.isArray(t.tags) ? t.tags : []))];
+  tagLabel.style.display = tags.length ? 'block' : 'none';
+  tagWrap.innerHTML = tags.length ? ['all', ...tags].map(tag=>
+    `<button type="button" class="wiz-chip ${wizActiveProblemTag===tag?'active':''}" data-problem-tag="${escapeHtml(tag)}">${tag==='all'?'全部':escapeHtml(tag)}</button>`
+  ).join('') : '';
+  tagWrap.querySelectorAll('[data-problem-tag]').forEach(btn=>{
+    btn.onclick = ()=>{
+      wizActiveProblemTag = btn.dataset.problemTag;
+      wizActiveProblem = null;
+      renderWizardBodySub();
+    };
+  });
+
+  const problems = allProblems.filter(t=>wizActiveProblemTag==='all' || (t.tags||[]).includes(wizActiveProblemTag));
   problemLabel.style.display='block';
   problemWrap.innerHTML = problems.length
     ? problems.map(t=>`<button type="button" class="wiz-chip ${wizActiveProblem===t.id?'active':''}" data-problem="${t.id}">${escapeHtml(t.title)}</button>`).join('')
-    : '<span class="empty-note">這個分類還沒有問題，可到「瀏覽全部話術」新增</span>';
+    : '<span class="empty-note">這個標籤下沒有問題，請選擇其他標籤</span>';
   problemWrap.querySelectorAll('[data-problem]').forEach(btn=>{
     btn.onclick = ()=>{
       wizActiveProblem = btn.dataset.problem;
@@ -835,6 +859,7 @@ function renderList(){
     const badges = [`<span class="badge badge-${t.stage}">${STAGE_LABEL_SHORT[t.stage]}</span>`];
     if(t.category) badges.push(`<span class="badge badge-cat">${catLabel(t.category)}</span>`);
     if(t.subcategory) badges.push(`<span class="badge badge-cat">${escapeHtml(t.subcategory)}</span>`);
+    (t.tags||[]).forEach(tag=>badges.push(`<span class="badge badge-cat">${escapeHtml(tag)}</span>`));
     if(t.appendWait) badges.push(`<span class="badge badge-appwait">附帶查詢中</span>`);
     const variantsCount = (t.variants || []).length + 1;
     if(variantsCount > 1) badges.push(`<span class="badge badge-cat">🔀 ${variantsCount} 個版本</span>`);
@@ -1037,7 +1062,7 @@ function renderBubblesOnly(){
 
 function openModal(id=null){
   editingId = id;
-  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,subcategory:'',saleType:'both',title:'',defaultVariantLabel:'預設回覆',content:'',variants:[], appendWait:false};
+  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,subcategory:'',tags:[],saleType:'both',title:'',defaultVariantLabel:'預設回覆',content:'',variants:[], appendWait:false};
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -1059,6 +1084,10 @@ function openModal(id=null){
             <select id="mCategory">
               ${categories.map(c=>`<option value="${c.id}" ${t.category===c.id?'selected':''}>${escapeHtml(c.label)}</option>`).join('')}
             </select>
+          </div>
+          <div class="field" id="mTagsWrap" style="display:${t.stage==='body'?'block':'none'}">
+            <label>標籤（選填）</label>
+            <input type="text" id="mTags" value="${escapeHtml((t.tags||[]).join('、'))}" placeholder="例如：急件、物流追蹤；以逗號分隔">
           </div>
           <div class="field" id="mSaleWrap" style="display:${(t.stage==='open'||t.stage==='close'||t.stage==='body')?'block':'none'}">
             <label>售前/售後</label>
@@ -1114,10 +1143,12 @@ function openModal(id=null){
 
   const stageSel = overlay.querySelector('#mStage');
   const catWrap = overlay.querySelector('#mCatWrap');
+  const tagsWrap = overlay.querySelector('#mTagsWrap');
   const saleWrap = overlay.querySelector('#mSaleWrap');
   const waitWrap = overlay.querySelector('#mAppendWaitWrap');
   stageSel.onchange = ()=>{
     catWrap.style.display = stageSel.value==='body' ? 'block':'none';
+    tagsWrap.style.display = stageSel.value==='body' ? 'block':'none';
     saleWrap.style.display = (stageSel.value==='open'||stageSel.value==='close'||stageSel.value==='body') ? 'block':'none';
     waitWrap.style.display = stageSel.value==='body' ? 'block':'none';
   };
@@ -1197,6 +1228,7 @@ function openModal(id=null){
   overlay.querySelector('#mSave').onclick = async ()=>{
     const stage = overlay.querySelector('#mStage').value;
     const category = stage==='body' ? overlay.querySelector('#mCategory').value : null;
+    const tags = stage==='body' ? overlay.querySelector('#mTags').value.split(/[，,、]/).map(v=>v.trim()).filter(Boolean) : [];
     // 舊匯入資料若已有小類型欄位則保留，但不再把它當成精靈的分類層級。
     const subcategory = stage==='body' ? (t.subcategory || null) : null;
     const saleType = (stage==='open'||stage==='close'||stage==='body') ? overlay.querySelector('#mSaleType').value : null;
@@ -1222,9 +1254,9 @@ function openModal(id=null){
     if(!title || !content){ showToast('請填寫標題與內容', true); return; }
     if(id){
       const idx = templates.findIndex(x=>x.id===id);
-      templates[idx] = {...templates[idx], stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidance, appendWait, hint, link};
+      templates[idx] = {...templates[idx], stage, category, subcategory, tags, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidance, appendWait, hint, link};
     }else{
-      templates.unshift({id:'u'+Date.now(), stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidance, appendWait, hint, link});
+      templates.unshift({id:'u'+Date.now(), stage, category, subcategory, tags, saleType, title, defaultVariantLabel, content, variants, variantLabels, guidance, appendWait, hint, link});
     }
     await saveTemplates(templates);
     overlay.remove();
