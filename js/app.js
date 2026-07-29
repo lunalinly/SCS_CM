@@ -1099,7 +1099,7 @@ function renderCompose(){
       const t = templates.find(x=>x.id===c.tplId);
       const text = instanceText(t, c.variantIndex||0);
       const plain = fillPlain(text);
-      const hasEmpty = extractVars(text).some(v=>!(varsValues[v]&&varsValues[v].trim()));
+      const hasEmpty = extractVars(text).some(v=>!(resolvedVarValue(v)&&String(resolvedVarValue(v)).trim()));
       const ok = await copyText(plain);
       if(ok) showToast(hasEmpty ? '已複製,但還有變數未填喔' : '已複製這段', hasEmpty);
       else showToast('複製失敗,請手動選取', true);
@@ -1475,9 +1475,9 @@ function openVarsModal(){
   overlay.onclick=e=>{if(e.target===overlay)close();};
   overlay.querySelector('#cvDone').onclick=async()=>{
     readDraft();
+    if(draft.some(v=>!v.name)){ showToast('請填寫所有參數名稱', true); return; }
     draft=normalizeCustomVars(draft);
     if(!draft.length){ showToast('至少保留一個常設參數', true); return; }
-    if(draft.some(v=>!v.name)){ showToast('請填寫所有參數名稱', true); return; }
     if(new Set(draft.map(v=>v.name)).size!==draft.length){ showToast('參數名稱不可重複', true); return; }
     customVars.forEach(oldVar=>{ const next=draft.find(v=>v.id===oldVar.id); if(next) replaceVariableName(oldVar.name,next.name); });
     customVars=draft;
@@ -1595,7 +1595,7 @@ async function init(){
       const t = templates.find(x=>x.id===c.tplId);
       return fillPlain(instanceText(t, c.variantIndex||0));
     }).join('\n\n');
-    const hasEmpty = currentVars().some(v=>!(varsValues[v]&&varsValues[v].trim()));
+    const hasEmpty = currentVars().some(v=>!(resolvedVarValue(v)&&String(resolvedVarValue(v)).trim()));
     const ok = await copyText(fullText);
     if(ok) showToast(hasEmpty ? '已複製全部,但還有變數未填喔' : '已複製全部回覆', hasEmpty);
     else showToast('複製失敗', true);
