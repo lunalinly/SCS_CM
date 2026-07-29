@@ -421,8 +421,7 @@ function openJsonBackupModal(){
       <div class="modal-foot">
         <button class="btn btn-primary" id="bkDone">關閉</button>
       </div>
-    </div>`;
-  document.body.appendChild(overlay);
+    </div>`);
 
   overlay.querySelector('#btnDownloadJson').onclick = ()=>{
     const dump = {
