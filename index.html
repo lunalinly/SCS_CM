@@ -26,6 +26,8 @@
     --amber-soft:#FBF0DC;
     --plum:#79479A;
     --plum-soft:#F1E9F6;
+    --green:#10B981;
+    --green-soft:#E6F4EA;
     --radius-lg:18px;
     --radius-md:12px;
     --radius-sm:8px;
@@ -48,7 +50,6 @@
   button{font-family:inherit;cursor:pointer;}
   input,textarea,select{font-family:inherit;}
   
-  /* 統一 SVG Icon 基礎樣式 */
   .icon{
     width:16px;height:16px;
     stroke:currentColor;fill:none;
@@ -59,7 +60,7 @@
   /* ---------- Header ---------- */
   .app-header{
     display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-    padding:16px 22px;
+    padding:14px 22px;
     background:var(--surface);
     border-bottom:1px solid var(--line);
     position:sticky;top:0;z-index:30;
@@ -82,7 +83,7 @@
     white-space:nowrap;
   }
   .header-search{
-    flex:1;max-width:420px;
+    flex:1;max-width:380px;
     display:flex;align-items:center;gap:8px;
     background:var(--surface-alt);border:1px solid var(--line);
     border-radius:999px;padding:8px 14px;
@@ -95,21 +96,28 @@
     font-size:13.5px;width:100%;color:var(--ink);
   }
   .header-search input::placeholder{color:var(--ink-faint);}
+  
+  .save-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--green-soft);color:var(--green);
+    border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:700;
+  }
+  .save-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+
   .header-stat{
     font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);
     white-space:nowrap;font-weight:600;
   }
   .header-stat b{color:var(--shopee-deep);font-weight:700;}
   
-  /* 統一頂部與全站按鈕尺寸規格 */
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
     border:none;border-radius:999px;
     font-weight:700;font-size:13px;
-    padding:9px 16px;
+    padding:8px 15px;
     transition:transform .12s ease, box-shadow .12s ease, background .15s;
     white-space:nowrap;
-    height:38px; /* 統一標準按鈕高度 */
+    height:36px;
   }
   .btn:active{transform:scale(.96);}
   .btn-primary{background:var(--shopee);color:#fff;box-shadow:0 4px 10px rgba(238,77,45,.25);}
@@ -122,7 +130,7 @@
   /* ---------- Layout ---------- */
   .layout{
     display:grid;grid-template-columns:360px 1fr;
-    height:calc(100vh - 71px);
+    height:calc(100vh - 67px);
   }
   @media (max-width:880px){
     .layout{grid-template-columns:1fr;height:auto;}
@@ -297,7 +305,7 @@
   .main{display:flex;flex-direction:column;overflow:hidden;}
   .quickbar{
     background:var(--surface-alt);border-bottom:1px solid var(--line);
-    padding:10px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:10px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   }
   
   .var-bar{
@@ -434,22 +442,28 @@
       <p>客服快速回覆組合工具</p>
     </div>
   </div>
+
   <div class="header-search">
     <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     <input id="searchInput" type="text" placeholder="搜尋話術標題或內文…">
   </div>
+
+  <div class="save-badge" id="saveBadge" title="話術皆自動儲存於目前瀏覽器，更新網頁不遺失">
+    <span class="save-dot"></span>已於本機保存
+  </div>
+
   <div class="header-stat">共 <b id="statCount">0</b> 則話術</div>
   
-  <!-- 匯出箭頭朝上（Upload）、匯入箭頭朝下（Download） -->
-  <button class="btn btn-ghost" id="btnExport">
+  <button class="btn btn-ghost" id="btnExport" title="匯出 Excel 或 JSON 備份檔">
     <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    匯出
+    匯出備份
   </button>
-  <button class="btn btn-ghost" id="btnImport">
+  <button class="btn btn-ghost" id="btnImport" title="匯入 Excel 或 JSON 備份檔">
     <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    匯入 Excel
+    匯入
   </button>
-  <input type="file" id="fileImport" accept=".xlsx,.xls,.csv" style="display:none;">
+  <input type="file" id="fileImport" accept=".xlsx,.xls,.csv,.json" style="display:none;">
+
   <button class="btn btn-primary" id="btnAdd">
     <svg class="icon" viewBox="0 0 24 24" style="stroke:#fff;width:14px;height:14px"><path d="M12 5v14M5 12h14"/></svg>
     新增話術
@@ -538,11 +552,12 @@
         管理常設參數
       </button>
       <div style="flex:1;"></div>
-      <button class="btn btn-ghost btn-sm" id="btnCalc">
-        <svg class="icon" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-        物流到貨試算
+      <button class="btn btn-ghost btn-sm" id="btnBackupModal">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        全站 JSON 備份/還原
       </button>
     </div>
+
     <div class="var-bar is-empty" id="varBar"></div>
     <div class="compose-scroll">
       <div class="compose-inner">
@@ -567,7 +582,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-/* 統一全站 SVG Icon 庫 */
+/* 全站 SVG Icon 庫 */
 const ICONS = {
   plus:'<path d="M12 5v14M5 12h14"/>',
   copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
@@ -609,7 +624,11 @@ function customConfirm(msg, onConfirm) {
 
 const STAGE_LABEL = {open:'開頭問候', wait:'查詢中／需要時間', body:'中段回覆', close:'結尾／滿意度'};
 const STAGE_LABEL_SHORT = {open:'開頭', wait:'查詢中', body:'中段', close:'結尾'};
-const CATEGORY_STORAGE_KEY = 'categories_v2';
+
+const STORAGE_KEY = 'helper_script_templates_v3';
+const CATEGORY_STORAGE_KEY = 'helper_script_categories_v3';
+const CUSTOM_VARS_KEY = 'helper_script_custom_vars_v3';
+
 const SEED_CATEGORIES = [
   {id:'logistics', label:'物流', emoji:'🚚'},
   {id:'return', label:'退換貨', emoji:'📦'},
@@ -617,24 +636,6 @@ const SEED_CATEGORIES = [
   {id:'product', label:'商品/庫存', emoji:'🛍️'},
   {id:'other', label:'其他', emoji:'💬'}
 ];
-let categories = [];
-function catLabel(id){ const c = categories.find(x=>x.id===id); return c ? c.label : (id||''); }
-
-async function loadCategories(){
-  try{
-    const res = localStorage.getItem(CATEGORY_STORAGE_KEY);
-    if(res){
-      const parsed = JSON.parse(res);
-      if(Array.isArray(parsed) && parsed.length) return parsed;
-    }
-  }catch(e){ console.error(e); }
-  await saveCategories(SEED_CATEGORIES);
-  return SEED_CATEGORIES.slice();
-}
-async function saveCategories(list){
-  try{ localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(list)); }
-  catch(e){ console.error('儲存類型失敗', e); }
-}
 
 const SEED_TEMPLATES = [
   {id:'s1', stage:'open', category:null, saleType:'pre', title:'售前開場', content:'您好,我是小幫手[BS],很高興為您服務!請問想詢問什麼呢?'},
@@ -661,9 +662,7 @@ const SEED_TEMPLATES = [
   {id:'s21', stage:'close', category:null, saleType:'pre', title:'售前結尾', content:'謝謝您的詢問!如果還有其他想了解的地方,都歡迎隨時再詢問小幫手喔![BS]'}
 ];
 
-const STORAGE_KEY = 'templates_v2';
-const CUSTOM_VARS_KEY = 'custom_vars_v2';
-
+let categories = [];
 let templates = [];
 let composeList = []; 
 let varsValues = {};
@@ -679,9 +678,29 @@ let sidebarMode = 'wizard';
 const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
 const SINGLE_STAGES = new Set(['open','wait','close']);
 
+function catLabel(id){ const c = categories.find(x=>x.id===id); return c ? c.label : (id||''); }
+
+async function loadCategories(){
+  try{
+    const res = localStorage.getItem(CATEGORY_STORAGE_KEY) || localStorage.getItem('categories_v2');
+    if(res){
+      const parsed = JSON.parse(res);
+      if(Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  }catch(e){ console.error(e); }
+  await saveCategories(SEED_CATEGORIES);
+  return SEED_CATEGORIES.slice();
+}
+
+async function saveCategories(list){
+  categories = list;
+  try{ localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(list)); }
+  catch(e){ console.error('儲存類型失敗', e); }
+}
+
 async function loadTemplates(){
   try{
-    const res = localStorage.getItem(STORAGE_KEY);
+    const res = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('templates_v2');
     if(res){
       const parsed = JSON.parse(res);
       if(Array.isArray(parsed) && parsed.length) return parsed;
@@ -690,13 +709,19 @@ async function loadTemplates(){
   await saveTemplates(SEED_TEMPLATES);
   return SEED_TEMPLATES.slice();
 }
+
 async function saveTemplates(list){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+  templates = list;
+  try{ 
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); 
+    updateSaveBadge();
+  }
   catch(e){ console.error('儲存失敗', e); showToast('儲存失敗,請稍後再試', true); }
 }
+
 function loadCustomVars(){
   try{
-    const res = localStorage.getItem(CUSTOM_VARS_KEY);
+    const res = localStorage.getItem(CUSTOM_VARS_KEY) || localStorage.getItem('custom_vars_v2');
     if(res) {
       const parsed = JSON.parse(res);
       if(Array.isArray(parsed)) return parsed;
@@ -704,9 +729,15 @@ function loadCustomVars(){
   }catch(e){}
   return ['訂單編號'];
 }
+
 function saveCustomVars(list){
   customVars = list;
   try{ localStorage.setItem(CUSTOM_VARS_KEY, JSON.stringify(list)); }catch(e){}
+}
+
+function updateSaveBadge(){
+  const badge = document.getElementById('saveBadge');
+  if(badge) badge.title = `已有 ${templates.length} 則話術與 ${categories.length} 個分類保存於此瀏覽器中`;
 }
 
 const IMPORT_HEADER_ALIASES = {
@@ -751,6 +782,7 @@ function resolveCategory(text, workingCats){
   workingCats.push(created);
   return created;
 }
+
 function importFromRows(rows){
   const keys = Object.keys(rows[0] || {});
   const col = {
@@ -831,10 +863,10 @@ function openImportConfirmModal(result, filename){
         <div class="field">
           <label>匯入方式</label>
           <label style="display:flex;align-items:center;gap:8px;font-weight:500;font-size:13px;color:var(--ink);margin-bottom:8px;">
-            <input type="radio" name="impMode" value="append" checked style="width:auto;"> 加到目前的話術(保留既有內容)
+            <input type="radio" name="impMode" value="append" checked style="width:auto;"> 加到目前的話術(保留本機已有的內容)
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-weight:500;font-size:13px;color:var(--ink);">
-            <input type="radio" name="impMode" value="replace" style="width:auto;"> 取代全部話術(只保留這次匯入的內容)
+            <input type="radio" name="impMode" value="replace" style="width:auto;"> 取代全部話術(清空現有，只保留本次匯入)
           </label>
         </div>
       </div>
@@ -858,7 +890,7 @@ function openImportConfirmModal(result, filename){
     overlay.remove();
     renderAll();
     renderCompose();
-    showToast(`已匯入 ${result.valid.length} 則話術`);
+    showToast(`已成功匯入並保存 ${result.valid.length} 則話術！`);
   };
 }
 
@@ -893,8 +925,50 @@ function exportCurrentTemplates(){
   XLSX.writeFile(wb, `客服話術匯出_${dateStr}.xlsx`);
 }
 
+function openJsonBackupModal(){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>全站 JSON 備份與還原</h3><button class="icon-btn" id="bkClose">${icon('x')}</button></div>
+      <div class="modal-body">
+        <p class="field-hint" style="margin:0;">當您需要在不同電腦或瀏覽器間轉移資料，或升級 GitHub 程式版本前，可使用完整的 JSON 備份檔。</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+          <button class="btn btn-ghost" id="btnDownloadJson" style="justify-content:flex-start;">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            下載全站 JSON 備份檔
+          </button>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="bkDone">關閉</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#btnDownloadJson').onclick = ()=>{
+    const dump = {
+      version: '3.0',
+      exportedAt: new Date().toISOString(),
+      categories,
+      customVars,
+      templates
+    };
+    const blob = new Blob([JSON.stringify(dump, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `小幫手話術全站備份_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    showToast('已下載 JSON 備份檔');
+  };
+
+  overlay.querySelector('#bkClose').onclick = ()=>overlay.remove();
+  overlay.querySelector('#bkDone').onclick = ()=>overlay.remove();
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+}
+
 function escapeHtml(str){
-  return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function extractVars(text){
   const re = /\{([^{}]+)\}/g; const out = []; let m;
@@ -924,7 +998,7 @@ function showToast(msg, warn=false){
   el.className = 'toast' + (warn ? ' warn' : '');
   el.innerHTML = (warn ? icon('alert') : icon('check')) + `<span>${msg}</span>`;
   wrap.appendChild(el);
-  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; setTimeout(()=>el.remove(),250); }, 2000);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; setTimeout(()=>el.remove(),250); }, 2200);
 }
 async function copyText(text){
   try{ await navigator.clipboard.writeText(text); return true; }
@@ -1422,7 +1496,7 @@ function openModal(id=null){
     overlay.remove();
     renderAll();
     renderCompose();
-    showToast(id?'已更新話術':'已新增話術');
+    showToast(id?'已更新並儲存話術':'已新增並儲存話術');
   };
 }
 
@@ -1606,10 +1680,7 @@ function renderAll(){
   renderList();
   renderWizard();
   document.getElementById('statCount').textContent = templates.length;
-}
-
-function openCalcModal() {
-  showToast('物流試算功能請至相關系統操作', false);
+  updateSaveBadge();
 }
 
 async function init(){
@@ -1618,12 +1689,43 @@ async function init(){
   templates = await loadTemplates();
   
   document.getElementById('btnExport').onclick = exportCurrentTemplates;
+  document.getElementById('btnBackupModal').onclick = openJsonBackupModal;
   
   const fileInp = document.getElementById('fileImport');
   document.getElementById('btnImport').onclick = ()=> fileInp.click();
   fileInp.onchange = (e)=>{
     const file = e.target.files[0];
     if(!file) return;
+
+    if(file.name.endsWith('.json')){
+      const reader = new FileReader();
+      reader.onload = async (re)=>{
+        try{
+          const dump = JSON.parse(re.target.result);
+          if(dump.templates && Array.isArray(dump.templates)){
+            templates = dump.templates;
+            if(dump.categories && Array.isArray(dump.categories)) categories = dump.categories;
+            if(dump.customVars && Array.isArray(dump.customVars)) customVars = dump.customVars;
+            
+            await saveTemplates(templates);
+            await saveCategories(categories);
+            saveCustomVars(customVars);
+            
+            renderAll();
+            renderCompose();
+            showToast('已從 JSON 備份完整還原！');
+          } else {
+            showToast('JSON 格式不正確', true);
+          }
+        }catch(err){
+          showToast('讀取 JSON 檔案失敗', true);
+        }
+      };
+      reader.readAsText(file);
+      fileInp.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (re)=>{
       try{
@@ -1647,7 +1749,7 @@ async function init(){
   document.getElementById('btnAdd').onclick = ()=> openModal();
   
   document.getElementById('btnReset').onclick = ()=>{
-    customConfirm('確定要還原為預設話術嗎？這會清除您所有的自訂內容。', async () => {
+    customConfirm('確定要還原為預設話術嗎？這會清除您所有的自訂內容與匯入資料。', async () => {
       await saveTemplates(SEED_TEMPLATES);
       await saveCategories(SEED_CATEGORIES);
       templates = SEED_TEMPLATES.slice();
@@ -1688,9 +1790,6 @@ async function init(){
   document.getElementById('saleTypePost').onclick = ()=>{ wizSaleType='post'; renderWizard(); };
 
   document.getElementById('btnManageVars').onclick = openVarsModal;
-  
-  const btnCalc = document.getElementById('btnCalc');
-  if(btnCalc) btnCalc.onclick = openCalcModal;
 
   renderAll();
   renderCompose();
