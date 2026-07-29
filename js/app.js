@@ -180,7 +180,8 @@ const IMPORT_HEADER_ALIASES = {
   hint:['提示','建議動作','動作','hint'],
   link:['連結','link','網址']
 };
-const VARIANT_COL_KEYWORDS = ['其他回覆', '回覆方式', '版本']; 
+const VARIANT_COL_KEYWORDS = ['其他回覆', '回覆方式', '版本'];
+const VARIANT_LABEL_COL_KEYWORDS = ['按鍵名稱', '版本名稱', '小標'];
 
 function stageFromText(s){
   s = (s==null? '' : String(s)).trim();
@@ -201,7 +202,19 @@ function findCol(rowKeys, aliases){
   return rowKeys.find(k => aliases.some(a => String(k).toLowerCase().includes(a.toLowerCase())));
 }
 function findVariantCols(rowKeys){
-  return rowKeys.filter(k => VARIANT_COL_KEYWORDS.some(kw => String(k).toLowerCase().includes(kw)));
+  return rowKeys.filter(k => {
+    const name = String(k).toLowerCase();
+    return VARIANT_COL_KEYWORDS.some(kw => name.includes(kw.toLowerCase()))
+      && !VARIANT_LABEL_COL_KEYWORDS.some(kw => name.includes(kw.toLowerCase()));
+  });
+}
+function findVariantLabelCol(variantCol, rowKeys){
+  const suffix = String(variantCol).match(/(\d+)\s*$/)?.[1];
+  return rowKeys.find(k=>{
+    const name = String(k);
+    const isLabel = VARIANT_LABEL_COL_KEYWORDS.some(kw=>name.toLowerCase().includes(kw.toLowerCase()));
+    return isLabel && (!suffix || name.endsWith(suffix));
+  });
 }
 function resolveCategory(text, workingCats){
   const label = (text==null? '' : String(text)).trim();
@@ -256,10 +269,13 @@ function importFromRows(rows){
       const vText = String(r[vc] ?? '').trim();
       if(vText) {
         const splitted = vText.split(/\n?===\n?/).map(v=>v.trim()).filter(Boolean);
+        const labelCol = findVariantLabelCol(vc, keys);
+        const rawLabel = labelCol ? String(r[labelCol] ?? '').trim() : '';
         splitted.forEach((text, idx) => {
           variants.push(text);
-          // Excel 欄位名稱就是按鍵的小標；同一欄多筆內容時再加序號。
-          variantLabels.push(splitted.length > 1 ? `${vc} ${idx+1}` : String(vc));
+          // 有「按鍵名稱／版本名稱」欄時優先使用；否則沿用回覆欄的小標。
+          const label = rawLabel || String(vc);
+          variantLabels.push(splitted.length > 1 ? `${label} ${idx+1}` : label);
         });
       }
     });
@@ -458,8 +474,8 @@ function exportCurrentTemplates(){
       '附帶查詢中': t.appendWait ? '是' : '否'
     };
     for(let i=0; i<maxVariants; i++){
-      const label = (t.variantLabels && t.variantLabels[i]) || `回覆方式${i+2}`;
-      row[label] = (t.variants && t.variants[i]) ? t.variants[i] : '';
+      row[`按鍵名稱${i+2}`] = (t.variantLabels && t.variantLabels[i]) || `版本 ${i+2}`;
+      row[`回覆方式${i+2}`] = (t.variants && t.variants[i]) ? t.variants[i] : '';
     }
     row['提示'] = t.hint || '';
     row['參考連結'] = t.link || '';
