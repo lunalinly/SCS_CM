@@ -1438,7 +1438,7 @@ function openVarsModal(){
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal" style="max-width:520px;">
-      <div class="modal-head"><h3>管理常設參數</h3><button class="icon-btn" id="cvClose">${icon('x')}</button></div>
+      <div class="modal-head"><h3>管理現有參數</h3><button class="icon-btn" id="cvClose">${icon('x')}</button></div>
       <div class="modal-body">
         <p class="field-hint" style="margin-top:0;">可設定純文字或日期。日期參數可選擇基準日期並自動加減天數，例如「鑑賞期截止日＝取貨日期＋7 天」。</p>
         <div id="cvList" style="display:flex;flex-direction:column;gap:10px;"></div>
