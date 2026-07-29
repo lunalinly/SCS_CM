@@ -71,7 +71,7 @@ function instanceText(t, variantIndex){
   const arr = allVariants(t);
   return arr[variantIndex] ?? arr[0] ?? '';
 }
-function showToast(msg, warn=false){
+export function showToast(msg, warn=false){
   const wrap = document.getElementById('toast-wrap');
   const el = document.createElement('div');
   el.className = 'toast' + (warn ? ' warn' : '');
