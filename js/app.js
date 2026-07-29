@@ -182,7 +182,9 @@ const IMPORT_HEADER_ALIASES = {
   defaultVariantLabel:['預設按鍵名稱','預設回覆名稱','defaultVariantLabel'],
   appendWait:['附帶查詢中','加上請稍等','附帶等待話術'],
   hint:['提示','建議動作','動作','hint'],
-  link:['連結','link','網址']
+  guidanceSteps:['操作步驟','提示步驟','guidanceSteps'],
+  linkLabel:['參考連結名稱','連結名稱','linkLabel'],
+  link:['參考連結','連結','link','網址']
 };
 const VARIANT_COL_KEYWORDS = ['其他回覆', '回覆方式', '版本'];
 const VARIANT_LABEL_COL_KEYWORDS = ['按鍵名稱', '版本名稱', '小標'];
@@ -242,6 +244,8 @@ function importFromRows(rows){
     defaultVariantLabel: findCol(keys, IMPORT_HEADER_ALIASES.defaultVariantLabel),
     appendWait: findCol(keys, IMPORT_HEADER_ALIASES.appendWait),
     hint: findCol(keys, IMPORT_HEADER_ALIASES.hint),
+    guidanceSteps: findCol(keys, IMPORT_HEADER_ALIASES.guidanceSteps),
+    linkLabel: findCol(keys, IMPORT_HEADER_ALIASES.linkLabel),
     link: findCol(keys, IMPORT_HEADER_ALIASES.link)
   };
   const variantCols = findVariantCols(keys);
@@ -294,13 +298,21 @@ function importFromRows(rows){
     const appendWaitText = col.appendWait ? String(r[col.appendWait] ?? '').trim() : '';
     const appendWait = stage==='body' && /是|Y|True|1/i.test(appendWaitText);
     
-    const hint = col.hint ? String(r[col.hint] ?? '').trim() : '';
-    const link = col.link ? String(r[col.link] ?? '').trim() : '';
+    const stepSource = col.guidanceSteps ? String(r[col.guidanceSteps] ?? '').trim() : (col.hint ? String(r[col.hint] ?? '').trim() : '');
+    const linkSource = col.link ? String(r[col.link] ?? '').trim() : '';
+    const linkLabels = col.linkLabel ? String(r[col.linkLabel] ?? '').split(/\r?\n/).map(v=>v.trim()) : [];
+    const guidance = stepSource.split(/\r?\n/).map(text=>text.trim()).filter(Boolean).map(text=>({type:'step', text}));
+    linkSource.split(/\r?\n/).map(url=>url.trim()).filter(Boolean).forEach((url, idx)=>{
+      guidance.push({type:'link', label:linkLabels[idx] || '參考連結', url});
+    });
+    const hint = (guidance.find(item=>item.type==='step')||{}).text || '';
+    const link = (guidance.find(item=>item.type==='link')||{}).url || '';
     
     valid.push({
       id:'x'+Date.now()+'_'+i+Math.random().toString(36).slice(2,5), 
       stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels,
       appendWait: appendWait || undefined,
+      guidance: guidance.length ? guidance : undefined,
       hint: hint || undefined, link: link || undefined
     });
   });
@@ -476,6 +488,9 @@ function exportCurrentTemplates(){
   
   const saleTypeLabel = {pre:'售前', post:'售後', both:'皆可'};
   const rows = templates.map(t=>{
+    const guidance = guidanceFor(t);
+    const steps = guidance.filter(item=>item.type==='step').map(item=>item.text);
+    const links = guidance.filter(item=>item.type==='link');
     const row = {
       '階段': STAGE_LABEL_SHORT[t.stage] || t.stage,
       '售前售後': t.saleType ? (saleTypeLabel[t.saleType]||'') : '',
@@ -484,14 +499,17 @@ function exportCurrentTemplates(){
       '標題': t.title,
       '預設按鍵名稱': t.defaultVariantLabel || '預設回覆',
       '回覆內容': t.content,
+      '操作步驟': steps.join('\n'),
+      '參考連結名稱': links.map(item=>item.label || '參考連結').join('\n'),
+      '參考連結': links.map(item=>item.url).join('\n'),
       '附帶查詢中': t.appendWait ? '是' : '否'
     };
     for(let i=0; i<maxVariants; i++){
       row[`按鍵名稱${i+2}`] = (t.variantLabels && t.variantLabels[i]) || `版本 ${i+2}`;
       row[`回覆方式${i+2}`] = (t.variants && t.variants[i]) ? t.variants[i] : '';
     }
-    row['提示'] = t.hint || '';
-    row['參考連結'] = t.link || '';
+    // 保留舊欄位，舊版匯入檔仍可讀取；新欄位則完整保留多個步驟與連結。
+    row['提示'] = steps[0] || t.hint || '';
     return row;
   });
   const ws = XLSX.utils.json_to_sheet(rows);
