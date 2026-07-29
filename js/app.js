@@ -1,5 +1,20 @@
-
+/**
+ * ============================================================
+ * SCS_CM
+ * Application Entry
+ *
+ * Refactor Step 2-1
+ * Purpose:
+ * - Organize code structure
+ * - Keep all functionality unchanged
+ * ============================================================
+ */
 /* 全站 SVG Icon 庫 */
+
+// ============================================================
+// Constants
+// ============================================================
+
 const ICONS = {
   plus:'<path d="M12 5v14M5 12h14"/>',
   copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
@@ -16,12 +31,38 @@ const ICONS = {
   link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   settings:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'
 };
+
+// ============================================================
+// DOM Cache
+// ============================================================
+
+const DOM = {};
+
+// ============================================================
+// Application State
+// ============================================================
+
+const AppState = {};
+
+// ============================================================
+// Utility Functions
+// ============================================================
+
 function icon(name, extra=''){ return `<svg class="icon" ${extra} viewBox="0 0 24 24">${ICONS[name]||''}</svg>`; }
 
+function catLabel(id){ const c = categories.find(x=>x.id===id); return c ? c.label : (id||''); }
+
+function stageFromText(s){
+  s = (s==null? '' : String(s)).trim();
+  if(/開頭/.test(s)) return 'open';
+  if(/結尾|结尾/.test(s)) return 'close';
+  if(/查詢|等待|時間/.test(s)) return 'wait';
+  if(/中段|回答|body/i.test(s)) return 'body';
+  return null;
+}
+
 function customConfirm(msg, onConfirm) {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
+  const overlay = createModal(`
     <div class="modal" style="max-width:340px;">
       <div class="modal-body" style="padding:24px;">
         <p style="margin:0 0 16px; font-size:14px; font-weight:600; line-height:1.6; color:var(--ink); text-align:center;">${msg}</p>
@@ -39,12 +80,18 @@ function customConfirm(msg, onConfirm) {
   };
 }
 
+// Stage
+
 const STAGE_LABEL = {open:'開頭問候', wait:'查詢中／需要時間', body:'中段回覆', close:'結尾／滿意度'};
 const STAGE_LABEL_SHORT = {open:'開頭', wait:'查詢中', body:'中段', close:'結尾'};
+
+// Storage Keys
 
 const STORAGE_KEY = 'helper_script_templates_v3';
 const CATEGORY_STORAGE_KEY = 'helper_script_categories_v3';
 const CUSTOM_VARS_KEY = 'helper_script_custom_vars_v3';
+
+// Default Data
 
 const SEED_CATEGORIES = [
   {id:'logistics', label:'物流', emoji:'🚚'},
@@ -79,6 +126,10 @@ const SEED_TEMPLATES = [
   {id:'s21', stage:'close', category:null, saleType:'pre', title:'售前結尾', content:'謝謝您的詢問!如果還有其他想了解的地方,都歡迎隨時再詢問小幫手喔![BS]'}
 ];
 
+// ============================================================
+// Global State
+// ============================================================
+
 let categories = [];
 let templates = [];
 let composeList = []; 
@@ -95,7 +146,12 @@ let sidebarMode = 'wizard';
 const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
 const SINGLE_STAGES = new Set(['open','wait','close']);
 
-function catLabel(id){ const c = categories.find(x=>x.id===id); return c ? c.label : (id||''); }
+
+// ============================================================
+// Storage
+// ============================================================
+
+// ---------- Categories ----------
 
 async function loadCategories(){
   try{
@@ -114,6 +170,8 @@ async function saveCategories(list){
   try{ localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(list)); }
   catch(e){ console.error('儲存類型失敗', e); }
 }
+
+// ---------- Templates ----------
 
 async function loadTemplates(){
   try{
@@ -136,6 +194,14 @@ async function saveTemplates(list){
   catch(e){ console.error('儲存失敗', e); showToast('儲存失敗,請稍後再試', true); }
 }
 
+
+// ---------- Custom Variables ----------
+
+function updateSaveBadge(){
+  const badge = document.getElementById('saveBadge');
+  if(badge) badge.title = `已有 ${templates.length} 則話術與 ${categories.length} 個分類保存於此瀏覽器中`;
+}
+
 function loadCustomVars(){
   try{
     const res = localStorage.getItem(CUSTOM_VARS_KEY) || localStorage.getItem('custom_vars_v2');
@@ -152,10 +218,9 @@ function saveCustomVars(list){
   try{ localStorage.setItem(CUSTOM_VARS_KEY, JSON.stringify(list)); }catch(e){}
 }
 
-function updateSaveBadge(){
-  const badge = document.getElementById('saveBadge');
-  if(badge) badge.title = `已有 ${templates.length} 則話術與 ${categories.length} 個分類保存於此瀏覽器中`;
-}
+// ============================================================
+// Import / Export Constants
+// ============================================================
 
 const IMPORT_HEADER_ALIASES = {
   stage:['階段','stage','對話階段'],
@@ -169,14 +234,10 @@ const IMPORT_HEADER_ALIASES = {
 };
 const VARIANT_COL_KEYWORDS = ['其他回覆', '回覆方式', '版本']; 
 
-function stageFromText(s){
-  s = (s==null? '' : String(s)).trim();
-  if(/開頭/.test(s)) return 'open';
-  if(/結尾|结尾/.test(s)) return 'close';
-  if(/查詢|等待|時間/.test(s)) return 'wait';
-  if(/中段|回答|body/i.test(s)) return 'body';
-  return null;
-}
+// ============================================================
+// Import Utilities
+// ============================================================
+
 function saleTypeFromText(s){
   s = (s==null? '' : String(s)).trim();
   if(/皆可|通用|都可/.test(s)) return 'both';
@@ -199,6 +260,10 @@ function resolveCategory(text, workingCats){
   workingCats.push(created);
   return created;
 }
+
+// ============================================================
+// Import / Export
+// ============================================================
 
 function importFromRows(rows){
   const keys = Object.keys(rows[0] || {});
@@ -268,9 +333,7 @@ function importFromRows(rows){
 function openImportConfirmModal(result, filename){
   const counts = {open:0, body:0, wait:0, close:0};
   result.valid.forEach(t=> counts[t.stage]++);
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
+  const overlay = createModal(`
     <div class="modal">
       <div class="modal-head"><h3>匯入 Excel 話術</h3><button class="icon-btn" id="impClose">${icon('x')}</button></div>
       <div class="modal-body">
@@ -343,9 +406,7 @@ function exportCurrentTemplates(){
 }
 
 function openJsonBackupModal(){
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
+  const overlay = createModal(`
     <div class="modal">
       <div class="modal-head"><h3>全站 JSON 備份與還原</h3><button class="icon-btn" id="bkClose">${icon('x')}</button></div>
       <div class="modal-body">
@@ -382,6 +443,23 @@ function openJsonBackupModal(){
   overlay.querySelector('#bkClose').onclick = ()=>overlay.remove();
   overlay.querySelector('#bkDone').onclick = ()=>overlay.remove();
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+}
+
+// ============================================================
+// General Utilities
+// ============================================================
+
+/**
+ * 建立並顯示 Modal Overlay
+ * @param {string} html Modal 的 HTML 內容
+ * @returns {HTMLDivElement}
+ */
+function createModal(html) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+  return overlay;
 }
 
 function escapeHtml(str){
@@ -430,6 +508,10 @@ async function copyText(text){
   }
 }
 
+// ============================================================
+// Sidebar UI
+// ============================================================
+
 function setSidebarMode(mode){
   sidebarMode = mode;
   document.querySelectorAll('.mode-tab').forEach(b=> b.classList.toggle('active', b.dataset.mode===mode));
@@ -447,6 +529,20 @@ function linkTag(t){
   }
   return `<span class="wiz-link" title="${title}">${icon('lightbulb')}</span>`;
 }
+
+// ============================================================
+// Rendering
+// ============================================================
+
+function renderAll(){
+  renderStageChips();
+  renderCategoryChips();
+  renderList();
+  renderWizard();
+  document.getElementById('statCount').textContent = templates.length;
+  updateSaveBadge();
+}
+
 function renderActionHints(){
   const box = document.getElementById('actionHints');
   const relevant = composeList
@@ -462,32 +558,6 @@ function renderActionHints(){
     </div>`).join('');
 }
 
-function wizButtonsHtml(list){
-  if(!list.length) return `<span class="empty-note">這個分類還沒有話術,可以到「瀏覽全部話術」新增一則</span>`;
-  return list.map(t=>{
-    const isActive = SINGLE_STAGES.has(t.stage) && composeList.some(c=>c.tplId===t.id);
-    const variantsCount = (t.variants || []).length + 1;
-    let selHtml = '';
-    if (variantsCount > 1) {
-      const opts = Array.from({length: variantsCount}).map((_, i) => `<option value="${i}">版本 ${i+1}</option>`).join('');
-      selHtml = `<select class="wiz-variant-sel" title="選擇回覆版本">${opts}</select>`;
-    }
-    return `
-      <div class="wiz-btn-group">
-        <button type="button" class="wiz-btn ${isActive?'active':''}" data-tpl="${t.id}">${escapeHtml(t.title)}</button>
-        ${selHtml}
-      </div>`;
-  }).join('');
-}
-function attachWizEvents(container){
-  container.querySelectorAll('[data-tpl]').forEach(b=> {
-    b.onclick = ()=> {
-      const sel = b.parentElement.querySelector('.wiz-variant-sel');
-      const vIdx = sel ? parseInt(sel.value) : 0;
-      insertTemplate(b.dataset.tpl, vIdx);
-    };
-  });
-}
 function renderWizard(){
   document.getElementById('saleTypePre').classList.toggle('active', wizSaleType==='pre');
   document.getElementById('saleTypePost').classList.toggle('active', wizSaleType==='post');
@@ -518,6 +588,7 @@ function renderWizard(){
   wizClose.innerHTML = wizButtonsHtml(closeList);
   attachWizEvents(wizClose);
 }
+
 function renderWizardBodySub(){
   const subWrap = document.getElementById('wizBodySub');
   const subLabel = document.getElementById('wizBodySubLabel');
@@ -545,6 +616,7 @@ function renderStageChips(){
   });
   document.getElementById('categoryWrap').style.display = (activeStage==='body' || activeStage==='all') ? 'block' : 'none';
 }
+
 function renderCategoryChips(){
   const cats = ['all', ...categories.map(c=>c.id)];
   const wrap = document.getElementById('categoryChips');
@@ -559,17 +631,6 @@ function renderCategoryChips(){
   if(manageBtn2) manageBtn2.onclick = openCategoryModal;
 }
 
-function filteredTemplates(){
-  return templates.filter(t=>{
-    if(activeStage!=='all' && t.stage!==activeStage) return false;
-    if(activeStage!=='wait' && activeStage!=='open' && activeStage!=='close' && activeCategory!=='all' && t.category!==activeCategory) return false;
-    if(searchTerm){
-      const hay = (t.title+' '+t.content+' '+(t.variants||[]).join(' ')).toLowerCase();
-      if(!hay.includes(searchTerm.toLowerCase())) return false;
-    }
-    return true;
-  });
-}
 function renderList(){
   const list = filteredTemplates();
   const wrap = document.getElementById('listScroll');
@@ -619,66 +680,6 @@ function renderList(){
   });
 }
 
-function genInstId(){ return 'i'+Date.now()+Math.random().toString(36).slice(2,6); }
-
-function insertTemplate(tplId, variantIndex = 0, autoAppended = false){
-  const t = templates.find(x=>x.id===tplId);
-  if(!t) return;
-  if(SINGLE_STAGES.has(t.stage)){
-    composeList = composeList.filter(c=>{
-      const ct = templates.find(x=>x.id===c.tplId);
-      return !(ct && ct.stage===t.stage);
-    });
-  }
-  let idx = composeList.length;
-  for(let i=0;i<composeList.length;i++){
-    const ct = templates.find(x=>x.id===composeList[i].tplId);
-    if(ct && STAGE_ORDER[ct.stage] > STAGE_ORDER[t.stage]){ idx = i; break; }
-  }
-  composeList.splice(idx, 0, {instId:genInstId(), tplId, variantIndex});
-  
-  if(!autoAppended && t.stage === 'body' && t.appendWait) {
-    const hasWait = composeList.some(c => templates.find(x => x.id === c.tplId)?.stage === 'wait');
-    if (!hasWait) {
-      const waitTpl = templates.find(x => x.stage === 'wait'); 
-      if (waitTpl) {
-        insertTemplate(waitTpl.id, 0, true);
-        showToast('已加入並自動附帶查詢中話術');
-      }
-    } else {
-      showToast('已加入回覆 (已有查詢中話術)');
-    }
-  } else if(!autoAppended) {
-    showToast('已加入回覆');
-  }
-
-  renderCompose();
-  renderWizard();
-}
-function removeInst(instId){ composeList = composeList.filter(c=>c.instId!==instId); renderCompose(); renderWizard(); }
-function moveInst(instId, dir){
-  const idx = composeList.findIndex(c=>c.instId===instId);
-  const newIdx = idx+dir;
-  if(newIdx<0 || newIdx>=composeList.length) return;
-  [composeList[idx], composeList[newIdx]] = [composeList[newIdx], composeList[idx]];
-  renderCompose();
-}
-function setVariant(instId, variantIndex){
-  const c = composeList.find(x=>x.instId===instId);
-  if(!c) return;
-  c.variantIndex = variantIndex;
-  renderBubblesOnly();
-}
-
-function currentVars(){
-  const all = [];
-  composeList.forEach(c=>{
-    const t = templates.find(x=>x.id===c.tplId);
-    if(t) extractVars(instanceText(t, c.variantIndex||0)).forEach(v=>{ if(!all.includes(v)) all.push(v); });
-  });
-  return all;
-}
-
 function renderVarBar(){
   const autoVars = currentVars();
   const allVars = [...new Set([...customVars, ...autoVars])];
@@ -695,13 +696,6 @@ function renderVarBar(){
   bar.querySelectorAll('input').forEach(inp=>{
     inp.oninput = ()=>{ varsValues[inp.dataset.var] = inp.value; syncVarInputs(); };
   });
-}
-function syncVarInputs(){
-  document.querySelectorAll('[data-var]').forEach(inp=>{
-    const v = varsValues[inp.dataset.var] || '';
-    if(inp.value !== v) inp.value = v;
-  });
-  renderBubblesOnly();
 }
 
 function renderCompose(){
@@ -768,6 +762,7 @@ function renderCompose(){
     };
   });
 }
+
 function renderBubblesOnly(){
   document.querySelectorAll('.bubble-row').forEach(row=>{
     const instId = row.dataset.inst;
@@ -780,12 +775,118 @@ function renderBubblesOnly(){
   });
 }
 
+function wizButtonsHtml(list){
+  if(!list.length) return `<span class="empty-note">這個分類還沒有話術,可以到「瀏覽全部話術」新增一則</span>`;
+  return list.map(t=>{
+    const isActive = SINGLE_STAGES.has(t.stage) && composeList.some(c=>c.tplId===t.id);
+    const variantsCount = (t.variants || []).length + 1;
+    let selHtml = '';
+    if (variantsCount > 1) {
+      const opts = Array.from({length: variantsCount}).map((_, i) => `<option value="${i}">版本 ${i+1}</option>`).join('');
+      selHtml = `<select class="wiz-variant-sel" title="選擇回覆版本">${opts}</select>`;
+    }
+    return `
+      <div class="wiz-btn-group">
+        <button type="button" class="wiz-btn ${isActive?'active':''}" data-tpl="${t.id}">${escapeHtml(t.title)}</button>
+        ${selHtml}
+      </div>`;
+  }).join('');
+}
+function attachWizEvents(container){
+  container.querySelectorAll('[data-tpl]').forEach(b=> {
+    b.onclick = ()=> {
+      const sel = b.parentElement.querySelector('.wiz-variant-sel');
+      const vIdx = sel ? parseInt(sel.value) : 0;
+      insertTemplate(b.dataset.tpl, vIdx);
+    };
+  });
+}
+
+
+function filteredTemplates(){
+  return templates.filter(t=>{
+    if(activeStage!=='all' && t.stage!==activeStage) return false;
+    if(activeStage!=='wait' && activeStage!=='open' && activeStage!=='close' && activeCategory!=='all' && t.category!==activeCategory) return false;
+    if(searchTerm){
+      const hay = (t.title+' '+t.content+' '+(t.variants||[]).join(' ')).toLowerCase();
+      if(!hay.includes(searchTerm.toLowerCase())) return false;
+    }
+    return true;
+  });
+}
+
+function genInstId(){ return 'i'+Date.now()+Math.random().toString(36).slice(2,6); }
+
+function insertTemplate(tplId, variantIndex = 0, autoAppended = false){
+  const t = templates.find(x=>x.id===tplId);
+  if(!t) return;
+  if(SINGLE_STAGES.has(t.stage)){
+    composeList = composeList.filter(c=>{
+      const ct = templates.find(x=>x.id===c.tplId);
+      return !(ct && ct.stage===t.stage);
+    });
+  }
+  let idx = composeList.length;
+  for(let i=0;i<composeList.length;i++){
+    const ct = templates.find(x=>x.id===composeList[i].tplId);
+    if(ct && STAGE_ORDER[ct.stage] > STAGE_ORDER[t.stage]){ idx = i; break; }
+  }
+  composeList.splice(idx, 0, {instId:genInstId(), tplId, variantIndex});
+  
+  if(!autoAppended && t.stage === 'body' && t.appendWait) {
+    const hasWait = composeList.some(c => templates.find(x => x.id === c.tplId)?.stage === 'wait');
+    if (!hasWait) {
+      const waitTpl = templates.find(x => x.stage === 'wait'); 
+      if (waitTpl) {
+        insertTemplate(waitTpl.id, 0, true);
+        showToast('已加入並自動附帶查詢中話術');
+      }
+    } else {
+      showToast('已加入回覆 (已有查詢中話術)');
+    }
+  } else if(!autoAppended) {
+    showToast('已加入回覆');
+  }
+
+  renderCompose();
+  renderWizard();
+}
+function removeInst(instId){ composeList = composeList.filter(c=>c.instId!==instId); renderCompose(); renderWizard(); }
+function moveInst(instId, dir){
+  const idx = composeList.findIndex(c=>c.instId===instId);
+  const newIdx = idx+dir;
+  if(newIdx<0 || newIdx>=composeList.length) return;
+  [composeList[idx], composeList[newIdx]] = [composeList[newIdx], composeList[idx]];
+  renderCompose();
+}
+function setVariant(instId, variantIndex){
+  const c = composeList.find(x=>x.instId===instId);
+  if(!c) return;
+  c.variantIndex = variantIndex;
+  renderBubblesOnly();
+}
+
+function currentVars(){
+  const all = [];
+  composeList.forEach(c=>{
+    const t = templates.find(x=>x.id===c.tplId);
+    if(t) extractVars(instanceText(t, c.variantIndex||0)).forEach(v=>{ if(!all.includes(v)) all.push(v); });
+  });
+  return all;
+}
+
+function syncVarInputs(){
+  document.querySelectorAll('[data-var]').forEach(inp=>{
+    const v = varsValues[inp.dataset.var] || '';
+    if(inp.value !== v) inp.value = v;
+  });
+  renderBubblesOnly();
+}
+
 function openModal(id=null){
   editingId = id;
   const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,saleType:'both',title:'',content:'',variants:[], appendWait:false};
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
+  const overlay = createModal(`
     <div class="modal">
       <div class="modal-head">
         <h3>${id?'編輯話術':'新增話術'}</h3>
@@ -918,9 +1019,7 @@ function openModal(id=null){
 }
 
 function openCategoryModal(){
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
+  const overlay = createModal(`
     <div class="modal">
       <div class="modal-head"><h3>管理問題類型</h3><button class="icon-btn" id="ctClose">${icon('x')}</button></div>
       <div class="modal-body">
@@ -1015,9 +1114,7 @@ function deleteCategory(catId, afterDelete){
 }
 
 function openVarsModal(){
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
+  const overlay = createModal(`
     <div class="modal" style="max-width:400px;">
       <div class="modal-head"><h3>管理常設參數</h3><button class="icon-btn" id="cvClose">${icon('x')}</button></div>
       <div class="modal-body">
@@ -1091,14 +1188,6 @@ function deleteTemplate(id){
   });
 }
 
-function renderAll(){
-  renderStageChips();
-  renderCategoryChips();
-  renderList();
-  renderWizard();
-  document.getElementById('statCount').textContent = templates.length;
-  updateSaveBadge();
-}
 
 async function init(){
   customVars = loadCustomVars();
@@ -1213,3 +1302,13 @@ async function init(){
 }
 
 window.onload = init;
+
+// ============================================================
+// Initialization
+// ============================================================
+
+function init() {
+    console.log("SCS_CM initialized");
+}
+
+document.addEventListener("DOMContentLoaded", init);
