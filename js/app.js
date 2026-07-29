@@ -93,7 +93,7 @@ let searchTerm = '';
 let editingId = null;
 
 let wizActiveCat = null;
-let wizActiveSubcategory = null;
+let wizActiveProblem = null;
 let wizSaleType = 'post';
 let sidebarMode = 'wizard';
 const STAGE_ORDER = {open:0, body:1, wait:2, close:3};
@@ -652,7 +652,7 @@ function renderWizard(){
   catWrap.querySelectorAll('[data-cat]').forEach(b=>{
     b.onclick = ()=>{
       wizActiveCat = (wizActiveCat===b.dataset.cat) ? null : b.dataset.cat;
-      wizActiveSubcategory = null;
+      wizActiveProblem = null;
       renderWizardBodySub();
     };
   });
@@ -671,52 +671,47 @@ function renderWizard(){
   attachWizEvents(wizClose);
 }
 function renderWizardBodySub(){
-  const subcategoryWrap = document.getElementById('wizSubcategory');
-  const subcategoryLabel = document.getElementById('wizSubcategoryLabel');
-  const responseWrap = document.getElementById('wizBodySub');
-  const responseLabel = document.getElementById('wizBodySubLabel');
+  const problemWrap = document.getElementById('wizSubcategory');
+  const problemLabel = document.getElementById('wizSubcategoryLabel');
+  const detailWrap = document.getElementById('wizBodySub');
+  const detailLabel = document.getElementById('wizBodySubLabel');
   if(!wizActiveCat){
-    subcategoryWrap.innerHTML='';
-    responseWrap.innerHTML='';
-    subcategoryLabel.style.display='none';
-    responseLabel.style.display='none';
+    problemWrap.innerHTML='';
+    detailWrap.innerHTML='';
+    problemLabel.style.display='none';
+    detailLabel.style.display='none';
     return;
   }
-  const subcategories = [...new Set(templates
-    .filter(t=>t.stage==='body' && t.category===wizActiveCat && t.subcategory)
-    .map(t=>t.subcategory))];
-  if(subcategories.length){
-    subcategoryLabel.style.display='block';
-    subcategoryWrap.innerHTML = subcategories.map(s=>
-      `<button type="button" class="wiz-chip ${wizActiveSubcategory===s?'active':''}" data-subcategory="${escapeHtml(s)}">${escapeHtml(s)}</button>`
-    ).join('');
-    subcategoryWrap.querySelectorAll('[data-subcategory]').forEach(btn=>{
-      btn.onclick = ()=>{
-        wizActiveSubcategory = btn.dataset.subcategory;
-        renderWizardBodySub();
-      };
-    });
-    if(!wizActiveSubcategory){
-      responseWrap.innerHTML='';
-      responseLabel.style.display='none';
-      return;
-    }
-  }else{
-    subcategoryWrap.innerHTML='';
-    subcategoryLabel.style.display='none';
-    wizActiveSubcategory = null;
-  }
-  responseLabel.style.display='block';
-  const list = templates.filter(t=>{
+
+  const problems = templates.filter(t=>{
     if(t.stage!=='body' || t.category!==wizActiveCat) return false;
-    if(subcategories.length && t.subcategory!==wizActiveSubcategory) return false;
     const st = t.saleType || 'both';
     return st==='both' || st===wizSaleType;
   });
-  responseWrap.innerHTML = wizButtonsHtml(list);
-  attachWizEvents(responseWrap);
-}
+  problemLabel.style.display='block';
+  problemWrap.innerHTML = problems.length
+    ? problems.map(t=>`<button type="button" class="wiz-chip ${wizActiveProblem===t.id?'active':''}" data-problem="${t.id}">${escapeHtml(t.title)}</button>`).join('')
+    : '<span class="empty-note">這個分類還沒有問題，可到「瀏覽全部話術」新增</span>';
+  problemWrap.querySelectorAll('[data-problem]').forEach(btn=>{
+    btn.onclick = ()=>{
+      wizActiveProblem = btn.dataset.problem;
+      renderWizardBodySub();
+    };
+  });
 
+  const selected = problems.find(t=>t.id===wizActiveProblem);
+  if(!selected){
+    detailWrap.innerHTML='';
+    detailLabel.style.display='none';
+    return;
+  }
+  const variants = allVariants(selected);
+  detailLabel.style.display='block';
+  detailWrap.innerHTML = variants.map((_, i)=>
+    `<button type="button" class="wiz-btn" data-tpl="${selected.id}" data-variant="${i}">${escapeHtml(variantLabel(selected, i))}</button>`
+  ).join('');
+  attachWizEvents(detailWrap);
+}
 function renderStageChips(){
   const stages = ['all','open','body','wait','close'];
   const wrap = document.getElementById('stageChips');
@@ -987,7 +982,7 @@ function renderBubblesOnly(){
 
 function openModal(id=null){
   editingId = id;
-  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,subcategory:'',saleType:'both',title:'',content:'',variants:[], appendWait:false};
+  const t = id ? templates.find(x=>x.id===id) : {stage:'body',category:(categories[0]||{}).id||null,subcategory:'',saleType:'both',title:'',defaultVariantLabel:'預設回覆',content:'',variants:[], appendWait:false};
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -1032,6 +1027,11 @@ function openModal(id=null){
             <input type="checkbox" id="mAppendWait" style="width:auto;" ${t.appendWait?'checked':''}>
             加入時自動附帶「查詢中請稍等」的等待話術
           </label>
+        </div>
+        <div class="field">
+          <label>預設回覆的按鍵名稱</label>
+          <input type="text" id="mDefaultVariantLabel" value="${escapeHtml(t.defaultVariantLabel||'預設回覆')}" placeholder="例如：基本說明">
+          <p class="field-hint">這是最後一層「細項」顯示的按鍵名稱。</p>
         </div>
         <div class="field">
           <label>回覆內容 (預設版本)</label>
@@ -1119,6 +1119,7 @@ function openModal(id=null){
     const appendWait = stage==='body' ? overlay.querySelector('#mAppendWait').checked : false;
     const title = overlay.querySelector('#mTitle').value.trim();
     const content = overlay.querySelector('#mContent').value.trim();
+    const defaultVariantLabel = overlay.querySelector('#mDefaultVariantLabel').value.trim() || '預設回覆';
     readVariantDrafts();
     const keptVariants = variantDrafts.filter(v=>v.content.trim());
     const variants = keptVariants.map(v=>v.content.trim());
@@ -1129,9 +1130,9 @@ function openModal(id=null){
     if(!title || !content){ showToast('請填寫標題與內容', true); return; }
     if(id){
       const idx = templates.findIndex(x=>x.id===id);
-      templates[idx] = {...templates[idx], stage, category, subcategory, saleType, title, content, variants, variantLabels, appendWait, hint, link};
+      templates[idx] = {...templates[idx], stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels, appendWait, hint, link};
     }else{
-      templates.unshift({id:'u'+Date.now(), stage, category, subcategory, saleType, title, content, variants, variantLabels, appendWait, hint, link});
+      templates.unshift({id:'u'+Date.now(), stage, category, subcategory, saleType, title, defaultVariantLabel, content, variants, variantLabels, appendWait, hint, link});
     }
     await saveTemplates(templates);
     overlay.remove();
