@@ -757,7 +757,17 @@ function renderActionHints(){
   const relevant = composeList
     .map(c=>templates.find(t=>t.id===c.tplId))
     .filter(t=> t && (guidanceFor(t).length || t.guidanceText));
-  if(!relevant.length){ box.style.display='none'; box.innerHTML=''; return; }
+  const hintSidebar = document.querySelector('.hint-sidebar');
+  const layout = document.querySelector('.layout');
+  if(!relevant.length){
+    box.style.display='none';
+    box.innerHTML='';
+    if(hintSidebar) hintSidebar.style.display='none';
+    if(layout) layout.classList.remove('has-hints');
+    return;
+  }
+  if(hintSidebar) hintSidebar.style.display='block';
+  if(layout) layout.classList.add('has-hints');
   box.style.display='block';
   box.innerHTML = `<p class="filter-label" style="margin-bottom:8px;">${icon('lightbulb')} 操作提示</p>` + relevant.map(t=>{
     let stepNumber = 0;
