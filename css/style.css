@@ -436,3 +436,22 @@
     max-width:100%;min-width:0;height:auto;white-space:normal;overflow-wrap:anywhere;
     word-break:break-word;text-align:left;line-height:1.45;
   }
+
+  /* ---------- Right-side guidance panel ---------- */
+  .layout.has-hints{grid-template-columns:360px minmax(0,1fr) 300px;}
+  .main{min-width:0;}
+  .hint-sidebar{
+    min-width:0;overflow-y:auto;border-left:1px solid var(--line);
+    background:var(--amber-soft);
+  }
+  .hint-sidebar .action-hints{
+    max-height:none;min-height:100%;padding:14px 16px;border-top:none;
+  }
+  @media (max-width:1100px) and (min-width:881px){
+    .layout.has-hints{grid-template-columns:300px minmax(0,1fr) 250px;}
+  }
+  @media (max-width:880px){
+    .layout.has-hints{grid-template-columns:1fr;}
+    .hint-sidebar{border-left:none;border-top:1px solid var(--line);}
+    .hint-sidebar .action-hints{min-height:0;}
+  }
