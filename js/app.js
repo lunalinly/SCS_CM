@@ -767,12 +767,27 @@ function renderActionHints(){
     if(layout) layout.classList.remove('has-hints');
     return;
   }
-  if(hintSidebar) hintSidebar.style.display='block';
-  if(layout) layout.classList.add('has-hints');
-  box.style.display='block';
-  box.innerHTML = `<p class="filter-label" style="margin-bottom:8px;">${icon('lightbulb')} 操作提示</p>` + relevant.map(t=>{
+
+  const seenTexts = new Set();
+  const seenActions = new Set();
+  const cards = [];
+  relevant.forEach(t=>{
+    const text = String(t.guidanceText||'').trim();
+    const uniqueText = text && !seenTexts.has(text);
+    if(uniqueText) seenTexts.add(text);
+
+    const uniqueGuidance = guidanceFor(t).filter(item=>{
+      const key = item.type==='link'
+        ? `link|${item.label||''}|${item.url||''}`
+        : `step|${item.text||''}|${item.url||''}`;
+      if(seenActions.has(key)) return false;
+      seenActions.add(key);
+      return true;
+    });
+    if(!uniqueText && !uniqueGuidance.length) return;
+
     let stepNumber = 0;
-    const actions = guidanceFor(t).map(item=>{
+    const actions = uniqueGuidance.map(item=>{
       if(item.type==='link'){
         return `<a class="btn btn-ghost btn-sm" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${icon('link','style="width:12px;height:12px"')} ${escapeHtml(item.label||'參考連結')}</a>`;
       }
@@ -783,8 +798,20 @@ function renderActionHints(){
       }
       return `<span class="btn btn-ghost btn-sm" style="cursor:default;">${stepLabel}</span>`;
     }).join('');
-    return `<div class="hint-card"><p class="hint-title">${escapeHtml(t.title)}</p>${t.guidanceText ? `<p class="hint-text" style="white-space:pre-wrap;">${escapeHtml(t.guidanceText)}</p>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;">${actions}</div></div>`;
-  }).join('');
+    cards.push(`<div class="hint-card"><p class="hint-title">${escapeHtml(t.title)}</p>${uniqueText ? `<p class="hint-text" style="white-space:pre-wrap;">${escapeHtml(text)}</p>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;">${actions}</div></div>`);
+  });
+
+  if(!cards.length){
+    box.style.display='none';
+    box.innerHTML='';
+    if(hintSidebar) hintSidebar.style.display='none';
+    if(layout) layout.classList.remove('has-hints');
+    return;
+  }
+  if(hintSidebar) hintSidebar.style.display='block';
+  if(layout) layout.classList.add('has-hints');
+  box.style.display='block';
+  box.innerHTML = `<p class="filter-label" style="margin-bottom:8px;">${icon('lightbulb')} 操作提示</p>` + cards.join('');
 }
 
 function wizButtonsHtml(list){
