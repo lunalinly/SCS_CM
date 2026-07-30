@@ -109,8 +109,8 @@
         <p class="wiz-sub-label" id="wizBodySubLabel" style="display:none;">細項</p>
         <div class="wiz-btns" id="wizBodySub"></div>
       </div>
-      <div class="wiz-step">
-        <div class="wiz-step-head"><span class="step-num">3</span>需要花時間查詢<span class="step-optional">選用</span></div>
+      <div class="wiz-step" id="wizStepWait">
+        <div class="wiz-step-head wiz-collapsible" data-collapse-step="wizStepWait" role="button" tabindex="0" aria-expanded="true"><span><span class="step-num">3</span>需要花時間查詢<span class="step-optional">選用</span></span><span class="wiz-toggle" aria-hidden="true">▽</span></div>
         <p class="wiz-sub-label" id="wizWaitTagLabel" style="display:none;">篩選標籤</p>
         <div class="wiz-btns" id="wizWaitTagFilters"></div>
         <p class="wiz-sub-label">選擇問題</p>
@@ -118,8 +118,8 @@
         <p class="wiz-sub-label" id="wizWaitDetailLabel" style="display:none;">細項</p>
         <div class="wiz-btns" id="wizWaitDetails"></div>
       </div>
-      <div class="wiz-step">
-        <div class="wiz-step-head"><span class="step-num">4</span>結尾</div>
+      <div class="wiz-step" id="wizStepClose">
+        <div class="wiz-step-head wiz-collapsible" data-collapse-step="wizStepClose" role="button" tabindex="0" aria-expanded="true"><span><span class="step-num">4</span>結尾</span><span class="wiz-toggle" aria-hidden="true">▽</span></div>
         <p class="wiz-sub-label" id="wizCloseTagLabel" style="display:none;">篩選標籤</p>
         <div class="wiz-btns" id="wizCloseTagFilters"></div>
         <p class="wiz-sub-label">選擇問題</p>
