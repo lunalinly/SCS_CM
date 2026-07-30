@@ -760,14 +760,17 @@ function renderActionHints(){
   if(!relevant.length){ box.style.display='none'; box.innerHTML=''; return; }
   box.style.display='block';
   box.innerHTML = `<p class="filter-label" style="margin-bottom:8px;">${icon('lightbulb')} 操作提示</p>` + relevant.map(t=>{
-    const actions = guidanceFor(t).map((item, i)=>{
+    let stepNumber = 0;
+    const actions = guidanceFor(t).map(item=>{
       if(item.type==='link'){
         return `<a class="btn btn-ghost btn-sm" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${icon('link','style="width:12px;height:12px"')} ${escapeHtml(item.label||'參考連結')}</a>`;
       }
+      stepNumber++;
+      const stepLabel = `步驟 ${stepNumber}：${escapeHtml(item.text)}`;
       if(item.url){
-        return `<a class="btn btn-ghost btn-sm" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${i+1}. ${escapeHtml(item.text)} ${icon('link','style="width:12px;height:12px"')}</a>`;
+        return `<a class="btn btn-ghost btn-sm" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${stepLabel} ${icon('link','style="width:12px;height:12px"')}</a>`;
       }
-      return `<span class="btn btn-ghost btn-sm" style="cursor:default;">${i+1}. ${escapeHtml(item.text)}</span>`;
+      return `<span class="btn btn-ghost btn-sm" style="cursor:default;">${stepLabel}</span>`;
     }).join('');
     return `<div class="hint-card"><p class="hint-title">${escapeHtml(t.title)}</p>${t.guidanceText ? `<p class="hint-text" style="white-space:pre-wrap;">${escapeHtml(t.guidanceText)}</p>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;">${actions}</div></div>`;
   }).join('');
