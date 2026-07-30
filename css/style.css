@@ -455,3 +455,9 @@
     .hint-sidebar{border-left:none;border-top:1px solid var(--line);}
     .hint-sidebar .action-hints{min-height:0;}
   }
+
+  /* Collapsible wizard sections. */
+  .wiz-collapsible{cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;}
+  .wiz-collapsible:focus-visible{outline:2px solid var(--shopee);outline-offset:3px;border-radius:4px;}
+  .wiz-toggle{font-size:16px;line-height:1;color:var(--ink-faint);padding:0 2px;}
+  .wiz-step.is-collapsed > :not(.wiz-step-head){display:none;}
