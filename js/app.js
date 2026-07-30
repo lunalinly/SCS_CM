@@ -47,6 +47,7 @@ const CATEGORY_STORAGE_KEY = 'helper_script_categories_v3';
 const CUSTOM_VARS_KEY = 'helper_script_custom_vars_v3';
 const EDITOR_CODE_VAR = '小編代號';
 const EDITOR_CODE_VALUE_KEY = 'helper_script_editor_code_v1';
+const QUICK_START_DISMISSED_KEY = 'helper_script_quick_start_dismissed_v1';
 
 const SEED_CATEGORIES = [
   {id:'logistics', label:'物流', emoji:'🚚'},
@@ -1620,6 +1621,14 @@ function renderAll(){
 }
 
 async function init(){
+  const quickStart = document.getElementById('templateQuickStart');
+  const closeQuickStart = document.getElementById('btnCloseQuickStart');
+  if(localStorage.getItem(QUICK_START_DISMISSED_KEY)==='1' && quickStart) quickStart.style.display='none';
+  if(closeQuickStart) closeQuickStart.onclick = ()=>{
+    if(quickStart) quickStart.style.display='none';
+    localStorage.setItem(QUICK_START_DISMISSED_KEY, '1');
+  };
+
   customVars = loadCustomVars();
   if(!customVars.some(v=>v.name===EDITOR_CODE_VAR)){
     customVars.push(makeCustomVar(EDITOR_CODE_VAR));
