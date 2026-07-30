@@ -1721,6 +1721,17 @@ async function init(){
   document.getElementById('saleTypePre').onclick = ()=>{ wizSaleType='pre'; renderWizard(); };
   document.getElementById('saleTypePost').onclick = ()=>{ wizSaleType='post'; renderWizard(); };
 
+  document.querySelectorAll('[data-collapse-step]').forEach(head=>{
+    const toggle = ()=>{
+      const step = document.getElementById(head.dataset.collapseStep);
+      const collapsed = step.classList.toggle('is-collapsed');
+      head.setAttribute('aria-expanded', String(!collapsed));
+      head.querySelector('.wiz-toggle').textContent = collapsed ? '▷' : '▽';
+    };
+    head.onclick = toggle;
+    head.onkeydown = e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); } };
+  });
+
   document.getElementById('btnManageVars').onclick = openVarsModal;
 
   renderAll();
