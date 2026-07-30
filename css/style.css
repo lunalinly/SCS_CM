@@ -419,3 +419,13 @@
     padding:16px 22px;border-top:1px solid var(--line);
     display:flex;justify-content:flex-end;gap:10px;
   }
+
+  /* Prevent long response buttons from forcing horizontal overflow. */
+  .wiz-btns{min-width:0;}
+  .wiz-btn-group{max-width:100%;min-width:0;flex-wrap:wrap;}
+  .wiz-btn,.wiz-chip{
+    max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;
+    text-align:left;line-height:1.45;
+  }
+  .tpl-actions{flex-wrap:wrap;min-width:0;}
+  .tpl-actions .btn{flex:0 1 auto;min-width:0;white-space:normal;line-height:1.35;}
