@@ -429,3 +429,10 @@
   }
   .tpl-actions{flex-wrap:wrap;min-width:0;}
   .tpl-actions .btn{flex:0 1 auto;min-width:0;white-space:normal;line-height:1.35;}
+
+  /* Guidance buttons stay within the sidebar and wrap long labels or URLs. */
+  #actionHints,.hint-card{min-width:0;}
+  .hint-card .btn{
+    max-width:100%;min-width:0;height:auto;white-space:normal;overflow-wrap:anywhere;
+    word-break:break-word;text-align:left;line-height:1.45;
+  }
