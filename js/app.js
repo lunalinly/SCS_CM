@@ -768,10 +768,11 @@ function renderActionHints(){
     return;
   }
 
-  const seenTexts = new Set();
-  const seenActions = new Set();
   const cards = [];
   relevant.forEach(t=>{
+    // 只在同一張提示卡內去重；不同類別的提示必須各自保留。
+    const seenTexts = new Set();
+    const seenActions = new Set();
     const text = String(t.guidanceText||'').trim();
     const uniqueText = text && !seenTexts.has(text);
     if(uniqueText) seenTexts.add(text);
